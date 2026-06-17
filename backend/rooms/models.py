@@ -47,6 +47,21 @@ class Room(models.Model):
     created_at = models.DateTimeField(
         auto_now_add=True
     )
+    ROOM_STATUS = [
+        ('waiting', 'Waiting'),
+        ('active', 'Active'),
+        ('finished', 'Finished')
+    ]
+    status = models.CharField(
+        max_length = 20,
+        choices = ROOM_STATUS,
+        default = 'waiting'
+    )
+
+    started_at = models.DateTimeField(
+        null = True,
+        blank = True
+    )
 
     def __str__(self):
         return self.room_code

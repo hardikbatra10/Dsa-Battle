@@ -6,6 +6,7 @@ from .serializers import RoomSerializer, JoinRoomSerializer
 from .models import Room
 from problems.models import Problem
 import uuid, random
+from django.utils import timezone
 
 
 class CreateRoomView(APIView):
@@ -118,3 +119,99 @@ class RoomDetailView(APIView):
             serializer.data,
             status=status.HTTP_200_OK
         )
+    
+class StartRoomView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, room_code):
+        
+        try:
+            room = Room.objects.get(room_code = room_code)
+
+        except Room.DoesNotExist:
+            return Response(
+                {"error": "Room does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if(request.user != room.creator):
+            return Response(
+                {"error" : "Only Room Creator can start a Room"},
+                status = status.HTTP_403_FORBIDDEN
+            )
+        if(room.status != 'waiting'):
+            return Response(
+                {"error" : "Room has already started"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if(Room.participants.count() < 2):
+            return Response(
+               {"error" : "At least 2 Participants Required"},
+               status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        room.status = "active"
+        room.started_at = timezone.now()
+        room.save()
+        serializer = RoomSerializer(room)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+    
+class LeaveRoomView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, room_code):
+        try:
+            room = Room.objects.get(room_code = room_code)
+
+        except Room.DoesNotExist:
+            return Response(
+                {"error": "Room does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        if request.user not in room.participants.all():
+            return Response(
+                {"error":"You are not a participant in this room"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if(room.status == 'active'):
+            return Response(
+                {"error" : "Cannot leave an active Room"},
+                status = status.HTTP_400_BAD_REQUEST
+            )
+        
+        if(request.user == room.creator):
+            room.participants.remove(request.user)
+
+            if room.participants.exists():
+
+                new_creator = room.participants.first()
+
+                room.creator = new_creator
+                room.save()
+
+                return Response(
+                    {"message": "Room ownership transferred"},
+                    status=status.HTTP_200_OK
+                )
+
+            room.delete()
+
+            return Response(
+                {"message": "Room deleted because no participants remained"},
+                status=status.HTTP_200_OK
+            )
+        else:
+            room.participants.remove(request.user)
+            return Response(
+                {"message": "Successfully left room"},
+                status=status.HTTP_200_OK
+            )   
+
+        
