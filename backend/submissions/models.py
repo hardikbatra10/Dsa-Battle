@@ -7,6 +7,7 @@ from problems.models import Problem
 class Submission(models.Model):
     VERDICT_CHOICES = [
         ('accepted', 'Accepted'),
+        ('pending', 'Pending'),
         ('wrong_answer', 'Wrong Answer'),
         ('runtime_error', 'Runtime Error'),
         ('compilation_error', 'Compilation Error'),
