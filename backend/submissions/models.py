@@ -8,7 +8,7 @@ class Submission(models.Model):
     VERDICT_CHOICES = [
         ('accepted', 'Accepted'),
         ('pending', 'Pending'),
-        ('wrong_answer', 'Wrong Answer'),
+        ('wrong_answer', 'Wrong Answer'),  
         ('runtime_error', 'Runtime Error'),
         ('compilation_error', 'Compilation Error'),
         ('time_limit_exceeded', 'Time Limit Exceeded')
@@ -31,7 +31,7 @@ class Submission(models.Model):
         Problem,
         on_delete = models.CASCADE
     )
-    code = models.TextField
+    code = models.TextField()
 
     language = models.CharField(
         max_length = 20,

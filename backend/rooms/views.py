@@ -145,9 +145,9 @@ class StartRoomView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if(Room.participants.count() < 2):
+        if(room.participants.count() < 1):
             return Response(
-               {"error" : "At least 2 Participants Required"},
+               {"error" : "At least 1 Participants Required"},
                status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -214,4 +214,3 @@ class LeaveRoomView(APIView):
                 status=status.HTTP_200_OK
             )   
 
-        

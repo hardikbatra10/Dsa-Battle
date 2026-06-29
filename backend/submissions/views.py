@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .serializers import SubmissionSerializer
 from .models import Submission
+from .services.judge0 import judge_problem
 
 
 class SubmitSolutionView(APIView):
@@ -18,13 +19,29 @@ class SubmitSolutionView(APIView):
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        print(serializer.validated_data)
 
         room = serializer.validated_data["room"]
         problem = serializer.validated_data["problem"]
         code = serializer.validated_data["code"]
         language = serializer.validated_data["language"]
 
+        verdict = judge_problem(
+            problem,
+            code,
+            language
+        )
+
+        submission = serializer.save(
+            user=request.user,
+            verdict=verdict
+        )
+        response_serializer = SubmissionSerializer(submission)
+
+
         # Check user belongs to room
+        print("Checking participant")
         if not room.participants.filter(id=request.user.id).exists():
             return Response(
                 {"error": "You are not a participant in this room"},
@@ -32,6 +49,7 @@ class SubmitSolutionView(APIView):
             )
 
         # Check room is active
+        print("Checking room status")
         if room.status != "active":
             return Response(
                 {"error": "Room is not active"},
@@ -39,24 +57,12 @@ class SubmitSolutionView(APIView):
             )
 
         # Check problem belongs to room
+        print("Checking problem")   
         if not room.selected_problems.filter(id=problem.id).exists():
             return Response(
                 {"error": "Problem does not belong to this room"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-
-        # Create submission
-        submission = Submission.objects.create(
-            user=request.user,
-            room=room,
-            problem=problem,
-            code=code,
-            language=language,
-            verdict="accepted"   # temporary until Judge0 integration
-        )
-
-        response_serializer = SubmissionSerializer(submission)
-
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED

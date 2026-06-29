@@ -70,4 +70,4 @@ class TestCase(models.Model):
         default = False
     )
     def __str__(self):
-        return f"{self.problem.title}"
+        return f"TestCase #{self.id} - {self.problem.title}"
