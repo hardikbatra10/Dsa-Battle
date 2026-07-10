@@ -21,3 +21,60 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'verdict',
             'submitted_at'
         ]
+
+class SubmissionHistorySerializer(serializers.ModelSerializer):
+
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    problem_title = serializers.CharField(
+        source="problem.title",
+        read_only=True
+    )
+
+    class Meta:
+
+        model = Submission
+
+        fields = [
+            "id",
+            "username",
+            "problem_title",
+            "language",
+            "verdict",
+            "submitted_at",
+        ]
+
+class SubmissionDetailSerializer(serializers.ModelSerializer):
+
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    problem_title = serializers.CharField(
+        source="problem.title",
+        read_only=True
+    )
+
+    room_code = serializers.CharField(
+        source="room.room_code",
+        read_only=True
+    )
+
+    class Meta:
+
+        model = Submission
+
+        fields = [
+            "id",
+            "username",
+            "room_code",
+            "problem_title",
+            "language",
+            "code",
+            "verdict",
+            "submitted_at",
+        ]

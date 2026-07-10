@@ -2,9 +2,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import SubmissionSerializer
+from .serializers import SubmissionSerializer, SubmissionHistorySerializer, SubmissionDetailSerializer
 from .models import Submission
 from .services.judge0 import judge_problem
+from rooms.models import Room
 
 
 class SubmitSolutionView(APIView):
@@ -66,4 +67,83 @@ class SubmitSolutionView(APIView):
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED
+        )
+    
+class SubmissionHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, room_code):
+
+        try:
+            room = Room.objects.get(room_code=room_code)
+
+        except Room.DoesNotExist:
+            return Response(
+                {"error": "Room does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+         # User must belong to the room
+        if not room.participants.filter(id=request.user.id).exists():
+            return Response(
+                {"error": "You are not a participant in this room"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        submissions = Submission.objects.filter(room=room)
+
+        # Optional query parameter:
+        # /history/<room_code>/?mine=true
+        mine = request.query_params.get("mine")
+
+        if mine and mine.lower() == "true":
+            submissions = submissions.filter(user=request.user)
+
+        submissions = submissions.order_by("-submitted_at")
+
+        serializer = SubmissionHistorySerializer(
+            submissions,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+    
+class SubmissionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, submission_id):
+
+        # Check if submission exists
+        try:
+            submission = Submission.objects.get(id=submission_id)
+
+        except Submission.DoesNotExist:
+            return Response(
+                {"error": "Submission does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if the requesting user belongs to the room
+        if not submission.room.participants.filter(
+            id=request.user.id
+        ).exists():
+
+            return Response(
+                {"error": "You are not a participant in this room"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        if submission.room.status == "active" and submission.user != request.user:
+            return Response(
+                {"error": "You cannot view other participants' submissions during an active contest."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        serializer = SubmissionDetailSerializer(submission)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
         )

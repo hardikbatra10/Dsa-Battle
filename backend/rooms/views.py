@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from .serializers import RoomSerializer, JoinRoomSerializer
 from .models import Room
 from problems.models import Problem
+from submissions.models import Submission
 import uuid, random
 from django.utils import timezone
 
@@ -214,3 +215,84 @@ class LeaveRoomView(APIView):
                 status=status.HTTP_200_OK
             )   
 
+class LeaderboardView(APIView):
+    def get(self, request, room_code):
+        try:
+            room = Room.objects.get(room_code=room_code)
+
+        except Room.DoesNotExist:
+            return Response(
+                {"error": "Room does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        participants = room.participants.all()
+        leaderboard = []
+        for participant in participants:
+            accepted_submissions = Submission.objects.filter(
+                user = participant,
+                room = room,
+                verdict = "accepted"   
+            )
+            solved = accepted_submissions.values("problem").distinct().count()
+
+            attempts = Submission.objects.filter(
+                room=room,
+                user=participant
+            ).count()
+            
+            leaderboard.append(
+                {   
+                    "username": participant.username,
+                    "solved": solved,
+                    "attempts": attempts
+                }
+            )
+
+        leaderboard.sort(
+            key=lambda x: (-x["solved"], x["attempts"])
+        )
+
+        for index, participant in enumerate(leaderboard, start=1):
+            participant["rank"] = index
+
+        return Response(
+            leaderboard, 
+            status = status.HTTP_200_OK
+        )
+
+class EndRoomView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, room_code):
+
+        try:
+            room = Room.objects.get(room_code=room_code)
+
+        except Room.DoesNotExist:
+            return Response(
+                {"error": "Room does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Only creator can end room
+        if request.user != room.creator:
+            return Response(
+                {"error": "Only the creator can end the room"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Room must already be active
+        if room.status != "active":
+            return Response(
+                {"error": "Room is not active"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        room.status = "finished"
+        room.save()
+
+        return Response(
+            {"message": "Room ended successfully"},
+            status=status.HTTP_200_OK
+        )
