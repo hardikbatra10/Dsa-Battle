@@ -63,5 +63,9 @@ class Room(models.Model):
         blank = True
     )
 
+    ended_at = models.DateTimeField(
+        null=True,
+        blank=True
+    )
     def __str__(self):
         return self.room_code

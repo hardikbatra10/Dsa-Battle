@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import Submission
+from problems.models import Problem
+from rooms.models import Room
 
 class SubmissionSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,14 +15,22 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'code',
             'language',
             'verdict',
+            'failure_detail',
             'submitted_at'
         ]
 
         read_only_fields = [
             'user',
             'verdict',
+            'failure_detail',
             'submitted_at'
         ]
+
+class RunCodeSerializer(serializers.Serializer):
+    room = serializers.PrimaryKeyRelatedField(queryset=Room.objects.all())
+    problem = serializers.PrimaryKeyRelatedField(queryset=Problem.objects.all())
+    code = serializers.CharField()
+    language = serializers.ChoiceField(choices=Submission.LANGUAGE_CHOICES)
 
 class SubmissionHistorySerializer(serializers.ModelSerializer):
 
@@ -76,5 +86,6 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "language",
             "code",
             "verdict",
+            "failure_detail",
             "submitted_at",
         ]

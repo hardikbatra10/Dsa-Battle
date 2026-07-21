@@ -41,6 +41,13 @@ class Submission(models.Model):
         max_length= 20,
         choices = VERDICT_CHOICES
     )
+    # Populated when verdict != "accepted": the failing test case's input,
+    # expected/actual output, and stderr/compile_output (whichever apply),
+    # so the submitter can see exactly what went wrong.
+    failure_detail = models.JSONField(
+        null = True,
+        blank = True
+    )
     submitted_at = models.DateTimeField(
         auto_now_add = True
     )

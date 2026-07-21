@@ -2,10 +2,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import SubmissionSerializer, SubmissionHistorySerializer, SubmissionDetailSerializer
+from .serializers import SubmissionSerializer, SubmissionHistorySerializer, SubmissionDetailSerializer, RunCodeSerializer
 from .models import Submission
-from .services.judge0 import judge_problem
+from .services.judge0 import judge_problem, run_sample_test_cases
 from rooms.models import Room
+from django.utils import timezone
+from datetime import timedelta
 
 
 class SubmitSolutionView(APIView):
@@ -21,28 +23,19 @@ class SubmitSolutionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        print(serializer.validated_data)
-
         room = serializer.validated_data["room"]
         problem = serializer.validated_data["problem"]
         code = serializer.validated_data["code"]
         language = serializer.validated_data["language"]
-
-        verdict = judge_problem(
-            problem,
-            code,
-            language
-        )
-
-        submission = serializer.save(
-            user=request.user,
-            verdict=verdict
-        )
-        response_serializer = SubmissionSerializer(submission)
-
-
+        if room.started_at is None:
+            return Response(
+                {"error": "Contest has not started yet."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        contest_end = room.started_at + timedelta(
+            minutes=room.time_limit_minutes
+        )        
         # Check user belongs to room
-        print("Checking participant")
         if not room.participants.filter(id=request.user.id).exists():
             return Response(
                 {"error": "You are not a participant in this room"},
@@ -50,7 +43,6 @@ class SubmitSolutionView(APIView):
             )
 
         # Check room is active
-        print("Checking room status")
         if room.status != "active":
             return Response(
                 {"error": "Room is not active"},
@@ -58,17 +50,102 @@ class SubmitSolutionView(APIView):
             )
 
         # Check problem belongs to room
-        print("Checking problem")   
         if not room.selected_problems.filter(id=problem.id).exists():
             return Response(
                 {"error": "Problem does not belong to this room"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        if timezone.now() > contest_end:
+            room.status = "finished"
+            room.ended_at = contest_end
+            room.save()
+            return Response(
+                {"error" : "Room has ended, No more Submissions allowed"},
+                status = status.HTTP_400_BAD_REQUEST
+            )
+        
+        outcome = judge_problem(
+            problem,
+            code,
+            language
+        )
+
+        failure_detail = None
+        if outcome["verdict"] != "accepted":
+            failure_detail = {
+                "input": outcome["input"],
+                "expected_output": outcome["expected_output"],
+                "actual_output": outcome["actual_output"],
+                "stderr": outcome["stderr"],
+                "compile_output": outcome["compile_output"],
+            }
+
+        submission = serializer.save(
+            user=request.user,
+            verdict=outcome["verdict"],
+            failure_detail=failure_detail
+        )
+        response_serializer = SubmissionSerializer(submission)
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED
         )
-    
+
+
+class RunSolutionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+
+        serializer = RunCodeSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        room = serializer.validated_data["room"]
+        problem = serializer.validated_data["problem"]
+        code = serializer.validated_data["code"]
+        language = serializer.validated_data["language"]
+
+        if not room.participants.filter(id=request.user.id).exists():
+            return Response(
+                {"error": "You are not a participant in this room"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if room.status != "active":
+            return Response(
+                {"error": "Room is not active"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not room.selected_problems.filter(id=problem.id).exists():
+            return Response(
+                {"error": "Problem does not belong to this room"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        results = run_sample_test_cases(problem, code, language)
+
+        if not results:
+            return Response(
+                {"error": "This problem has no sample test cases to run against."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                "results": results,
+                "all_passed": all(r["passed"] for r in results),
+            },
+            status=status.HTTP_200_OK
+        )
+
+
 class SubmissionHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 

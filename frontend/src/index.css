@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/*
+  Design tokens for DSA Battle.
+  Dark-first developer-tool palette. Mirrors the token list from the design
+  brief (background / surface / border / primary / success / warning / error /
+  text-primary / text-secondary) as CSS variables, and exposes matching
+  Tailwind color utilities (bg-bg, bg-surface, border-border, text-ink,
+  text-ink-soft, bg-primary, text-success, ...).
+*/
+@theme {
+  --color-bg: #0a0b0f;
+  --color-surface: #13151b;
+  --color-surface-2: #1a1d25;
+  --color-border: #262a35;
+
+  --color-primary: #a855f7;
+  --color-primary-hover: #9333ea;
+  --color-primary-soft: rgba(168, 85, 247, 0.12);
+
+  --color-success: #22c55e;
+  --color-success-soft: rgba(34, 197, 94, 0.12);
+  --color-warning: #f59e0b;
+  --color-warning-soft: rgba(245, 158, 11, 0.12);
+  --color-error: #ef4444;
+  --color-error-soft: rgba(239, 68, 68, 0.12);
+
+  --color-ink: #f3f4f6;
+  --color-ink-soft: #9ca3af;
+  --color-ink-faint: #5f6470;
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-ink);
+}
+
+/* Slim, dark-friendly scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+button {
+  font-family: inherit;
+}
