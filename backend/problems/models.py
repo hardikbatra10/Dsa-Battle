@@ -12,9 +12,20 @@ class Problem(models.Model):
 
     TOPIC_CHOICES = [
         ('array', 'Array'),
+        ('string', 'String'),
+        ('linked_list', 'Linked List'),
+        ('stack_queue', 'Stack & Queue'),
         ('trees', 'Trees'),
         ('graphs', 'Graphs'),
+        ('heap', 'Heap'),
         ('dp', 'DP'),
+        ('greedy', 'Greedy'),
+        ('backtracking', 'Backtracking'),
+        ('binary_search', 'Binary Search'),
+        ('two_pointers', 'Two Pointers'),
+        ('sliding_window', 'Sliding Window'),
+        ('bit_manipulation', 'Bit Manipulation'),
+        ('math', 'Math'),
     ]
 
     title = models.CharField(
