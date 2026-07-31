@@ -1,15 +1,14 @@
+.env
+.env.*
+venv/
+.venv/
+__pycache__/
+node_modules/
+dist/
+
 # Python
 __pycache__/
 *.pyc
-
-# Virtual Environment
-venv/
-
-# Environment Variables
-.env
-
-# VS Code
-.vscode/
 
 # Django
 media/
