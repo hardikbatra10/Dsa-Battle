@@ -68,7 +68,11 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
+    "https://peer-code-battle.vercel.app/",
     "http://localhost:3000",
+]
+CSRF_TRUSTED_ORIGINS = [
+    "https://peer-code-battle.vercel.app/",
 ]
 
 ROOT_URLCONF = 'config.urls'
