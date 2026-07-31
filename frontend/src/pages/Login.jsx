@@ -38,7 +38,7 @@ export default function Login() {
     <div className="mx-auto flex max-w-sm flex-col items-center py-10">
       <Link to="/" className="mb-8 flex items-center gap-2 text-lg font-semibold text-ink">
         <Swords className="text-primary" size={22} />
-        DSA Battle
+        Peer Code
       </Link>
 
       <Card className="w-full">
