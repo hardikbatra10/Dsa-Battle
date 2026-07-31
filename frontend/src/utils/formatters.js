@@ -10,9 +10,20 @@ export const DIFFICULTY_LABELS = {
 
 export const TOPIC_LABELS = {
   array: 'Array',
+  string: 'String',
+  linked_list: 'Linked List',
+  stack_queue: 'Stack & Queue',
   trees: 'Trees',
   graphs: 'Graphs',
+  heap: 'Heap',
   dp: 'DP',
+  greedy: 'Greedy',
+  backtracking: 'Backtracking',
+  binary_search: 'Binary Search',
+  two_pointers: 'Two Pointers',
+  sliding_window: 'Sliding Window',
+  bit_manipulation: 'Bit Manipulation',
+  math: 'Math',
 };
 
 export const ROOM_STATUS_LABELS = {
