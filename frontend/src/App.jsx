@@ -5,6 +5,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import LoadingSpinner from './components/LoadingSpinner/LoadingSpinner';
 
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -29,7 +30,11 @@ function Home() {
     );
   }
 
-  return <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />;
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <LandingPage />;
 }
 
 export default function App() {
