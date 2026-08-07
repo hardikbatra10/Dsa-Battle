@@ -39,3 +39,8 @@ export function leaveRoom(roomCode) {
 export function getLeaderboard(roomCode) {
   return api.get(`/rooms/${roomCode}/leaderboard/`);
 }
+
+// GET /api/rooms/mine/  -> rooms the current user created or joined, newest first
+export function getMyRooms() {
+  return api.get('/rooms/mine/');
+}

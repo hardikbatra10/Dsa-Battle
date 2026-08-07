@@ -27,3 +27,9 @@ export function getSubmissionHistory(roomCode, { mine = false } = {}) {
 export function getSubmissionDetail(submissionId) {
   return api.get(`/submissions/${submissionId}/`);
 }
+
+// GET /api/submissions/mine/  -> every submission the current user has ever
+// made, across all rooms, newest first.
+export function getMySubmissions() {
+  return api.get('/submissions/mine/');
+}

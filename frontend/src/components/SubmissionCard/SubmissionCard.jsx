@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Code2, ChevronRight } from 'lucide-react';
-import { VerdictBadge } from '../common/Badge';
+import { VerdictBadge, DifficultyBadge } from '../common/Badge';
 import { LANGUAGE_LABELS, formatDateTime } from '../../utils/formatters';
 
 export default function SubmissionCard({ submission }) {
@@ -14,7 +14,10 @@ export default function SubmissionCard({ submission }) {
           <Code2 size={16} />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-ink">{submission.problem_title}</p>
+          <p className="flex items-center gap-2 truncate text-sm font-medium text-ink">
+            {submission.problem_title}
+            {submission.difficulty && <DifficultyBadge difficulty={submission.difficulty} />}
+          </p>
           <p className="mt-0.5 truncate text-xs text-ink-faint">
             {submission.username} · {LANGUAGE_LABELS[submission.language] || submission.language} ·{' '}
             {formatDateTime(submission.submitted_at)}

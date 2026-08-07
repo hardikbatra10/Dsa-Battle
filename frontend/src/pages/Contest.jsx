@@ -23,6 +23,7 @@ import TestCaseResult from '../components/common/TestCaseResult';
 const ROOM_POLL_MS = 5000;
 const LEADERBOARD_POLL_MS = 6000;
 const CODE_STORAGE_PREFIX = 'dsa_battle_code_';
+const REDIRECT_DELAY_MS = 4000;
 
 export default function Contest() {
   const { roomCode } = useParams();
@@ -165,10 +166,32 @@ export default function Contest() {
   usePolling(refreshRoom, ROOM_POLL_MS, room?.status === 'active');
   usePolling(refreshLeaderboard, LEADERBOARD_POLL_MS, !!room && room.status !== 'waiting');
 
-  function handleTimerExpire() {
+  // The room stays "active" server-side until something explicitly ends it.
+  // Rather than leave that to the creator remembering to click "End Room",
+  // the creator's own client closes it out the moment the clock hits zero —
+  // every other participant then picks up status "finished" on their next
+  // room poll and gets redirected below.
+  async function handleTimerExpire() {
     setIsExpiredLocally(true);
+    if (isCreator && room?.status === 'active') {
+      try {
+        await endRoom(roomCode);
+      } catch {
+        // already ended by someone else (e.g. a late submission attempt) — ignore
+      }
+    }
     refreshRoom();
   }
+
+  // Once the room is authoritatively finished, everyone still on this page
+  // gets bounced to their dashboard instead of having to leave manually.
+  useEffect(() => {
+    if (room?.status !== 'finished') return undefined;
+    const timeout = setTimeout(() => {
+      navigate('/dashboard', { replace: true });
+    }, REDIRECT_DELAY_MS);
+    return () => clearTimeout(timeout);
+  }, [room?.status, navigate]);
 
   async function handleEndRoom() {
     if (!window.confirm('End this room for everyone? This cannot be undone.')) return;
@@ -297,7 +320,14 @@ export default function Contest() {
           </div>
           <div className="flex-1 overflow-y-auto p-5">
             {isContestOver && (
-              <ErrorBanner message="Contest Ended — submissions are closed." className="mb-4" />
+              <ErrorBanner
+                message={
+                  room.status === 'finished'
+                    ? 'Contest ended — redirecting to your dashboard…'
+                    : "Time's up — submissions are closed."
+                }
+                className="mb-4"
+              />
             )}
             {tab === 'problem' ? (
               <ProblemCard problem={activeProblem} />

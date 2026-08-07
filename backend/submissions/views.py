@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import SubmissionSerializer, SubmissionHistorySerializer, SubmissionDetailSerializer, RunCodeSerializer
+from .serializers import SubmissionSerializer, SubmissionHistorySerializer, SubmissionDetailSerializer, RunCodeSerializer, MySubmissionSerializer
 from .models import Submission
 from .services.judge0 import judge_problem, run_sample_test_cases
 from rooms.models import Room
@@ -188,6 +188,25 @@ class SubmissionHistoryView(APIView):
             status=status.HTTP_200_OK
         )
     
+class MySubmissionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        submissions = Submission.objects.filter(
+            user=request.user
+        ).order_by("-submitted_at")
+
+        serializer = MySubmissionSerializer(
+            submissions,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+
 class SubmissionDetailView(APIView):
     permission_classes = [IsAuthenticated]
 

@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from .serializers import RoomSerializer, JoinRoomSerializer
+from .serializers import RoomSerializer, JoinRoomSerializer, MyRoomSerializer
 from .models import Room
 from problems.models import Problem
 from submissions.models import Submission
@@ -260,6 +260,26 @@ class LeaderboardView(APIView):
             leaderboard, 
             status = status.HTTP_200_OK
         )
+
+class MyRoomsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        rooms = Room.objects.filter(
+            participants=request.user
+        ).order_by('-created_at')
+
+        serializer = MyRoomSerializer(
+            rooms,
+            many=True,
+            context={'request': request}
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
 
 class EndRoomView(APIView):
     permission_classes = [IsAuthenticated]
