@@ -6,8 +6,6 @@ from .serializers import SubmissionSerializer, SubmissionHistorySerializer, Subm
 from .models import Submission
 from .services.judge0 import judge_problem, run_sample_test_cases, Judge0Error
 from rooms.models import Room
-from django.utils import timezone
-from datetime import timedelta
 
 
 class SubmitSolutionView(APIView):
@@ -32,9 +30,7 @@ class SubmitSolutionView(APIView):
                 {"error": "Contest has not started yet."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        contest_end = room.started_at + timedelta(
-            minutes=room.time_limit_minutes
-        )        
+
         # Check user belongs to room
         if not room.participants.filter(id=request.user.id).exists():
             return Response(
@@ -56,10 +52,7 @@ class SubmitSolutionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        if timezone.now() > contest_end:
-            room.status = "finished"
-            room.ended_at = contest_end
-            room.save()
+        if room.settle_if_expired():
             return Response(
                 {"error" : "Room has ended, No more Submissions allowed"},
                 status = status.HTTP_400_BAD_REQUEST
@@ -125,6 +118,8 @@ class RunSolutionView(APIView):
                 {"error": "You are not a participant in this room"},
                 status=status.HTTP_403_FORBIDDEN
             )
+
+        room.settle_if_expired()
 
         if room.status != "active":
             return Response(

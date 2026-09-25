@@ -113,7 +113,12 @@ class RoomDetailView(APIView):
                 {"error": "Room does not exist"},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
+        # Both the lobby and the contest page poll this endpoint, so it is the
+        # dependable place for a room whose clock ran out to close itself,
+        # even if the creator never came back.
+        room.settle_if_expired()
+
         serializer = RoomSerializer(room)
 
         return Response(
@@ -180,7 +185,11 @@ class LeaveRoomView(APIView):
                 {"error":"You are not a participant in this room"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        # Settle first: without this, a room the creator abandoned stays
+        # "active" and nobody is ever allowed to leave it.
+        room.settle_if_expired()
+
         if(room.status == 'active'):
             return Response(
                 {"error" : "Cannot leave an active Room"},
@@ -225,7 +234,9 @@ class LeaderboardView(APIView):
                 {"error": "Room does not exist"},
                 status=status.HTTP_404_NOT_FOUND
             )
-        
+
+        room.settle_if_expired()
+
         participants = room.participants.all()
         leaderboard = []
         for participant in participants:
@@ -268,6 +279,11 @@ class MyRoomsView(APIView):
         rooms = Room.objects.filter(
             participants=request.user
         ).order_by('-created_at')
+
+        # Keeps the dashboard from showing an "Active" badge on a contest that
+        # actually ran out days ago.
+        for room in rooms:
+            room.settle_if_expired()
 
         serializer = MyRoomSerializer(
             rooms,

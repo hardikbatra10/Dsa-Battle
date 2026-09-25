@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from problems.models import Problem
 
 
@@ -67,5 +70,37 @@ class Room(models.Model):
         null=True,
         blank=True
     )
+
+    @property
+    def ends_at(self):
+        """When this room's clock runs out, or None if it hasn't started."""
+        if self.started_at is None:
+            return None
+        return self.started_at + timedelta(minutes=self.time_limit_minutes)
+
+    def settle_if_expired(self):
+        """
+        Flip an active room to finished once its clock has run out, and report
+        whether that just happened.
+
+        Nothing ends a room on its own: it needs the creator to press End, or
+        to still have the contest page open at expiry. A creator who simply
+        closes the tab leaves the room active forever, which also traps every
+        participant, because leaving an active room is refused. Read paths
+        call this so an abandoned room settles itself on the next request.
+
+        ended_at is backdated to the deadline rather than set to now, so a
+        room that nobody touched for a week does not claim to have run for
+        one.
+        """
+        deadline = self.ends_at
+        if self.status != "active" or deadline is None or timezone.now() <= deadline:
+            return False
+
+        self.status = "finished"
+        self.ended_at = deadline
+        self.save(update_fields=["status", "ended_at"])
+        return True
+
     def __str__(self):
         return self.room_code
