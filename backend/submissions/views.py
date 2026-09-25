@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .serializers import SubmissionSerializer, SubmissionHistorySerializer, SubmissionDetailSerializer, RunCodeSerializer, MySubmissionSerializer
 from .models import Submission
-from .services.judge0 import judge_problem, run_sample_test_cases
+from .services.judge0 import judge_problem, run_sample_test_cases, Judge0Error
 from rooms.models import Room
 from django.utils import timezone
 from datetime import timedelta
@@ -65,11 +65,20 @@ class SubmitSolutionView(APIView):
                 status = status.HTTP_400_BAD_REQUEST
             )
         
-        outcome = judge_problem(
-            problem,
-            code,
-            language
-        )
+        # A Judge0 outage or exhausted quota is an infrastructure failure, not
+        # a verdict: report it as such and record no Submission, so the user
+        # can retry without it counting as an attempt against them.
+        try:
+            outcome = judge_problem(
+                problem,
+                code,
+                language
+            )
+        except Judge0Error as exc:
+            return Response(
+                {"error": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
 
         failure_detail = None
         if outcome["verdict"] != "accepted":
@@ -129,7 +138,13 @@ class RunSolutionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        results = run_sample_test_cases(problem, code, language)
+        try:
+            results = run_sample_test_cases(problem, code, language)
+        except Judge0Error as exc:
+            return Response(
+                {"error": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
 
         if not results:
             return Response(

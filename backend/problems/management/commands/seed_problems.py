@@ -11,6 +11,21 @@ to be confident the seeded test data is right.
 Safe to re-run: existing problems are matched by title and only the fields
 this command owns are updated; test cases for a problem are fully replaced
 each run so there's never stale/duplicate data.
+
+About hidden_inputs: these are the suite a solution is judged against on
+Submit, so each one is chosen to break a specific wrong-but-plausible
+implementation rather than to add bulk - degenerate sizes, single-element
+inputs, all-equal values, negatives and zero, both monotonic directions,
+answers pinned at the first and last position, and numeric limits.
+
+Two ordering rules matter:
+  * cases are listed cheapest and most degenerate first. The suite runs as a
+    single Judge0 batch, so this does not change how much work is done - it
+    decides which failure judge_problem() reports, and a minimal failing case
+    is far easier to debug than a large one.
+  * a sample input is never repeated here. Samples are already visible and
+    are re-run by the Run action, so judging one again on Submit spends
+    another Judge0 submission for no extra signal.
 """
 
 from django.core.management.base import BaseCommand
@@ -767,7 +782,20 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is the target, line 2 is the space-separated array. Output format: the two 0-indexed positions, space-separated.",
         "solve": _solve_two_sum,
         "sample_inputs": ["9\n2 7 11 15"],
-        "hidden_inputs": ["6\n3 2 4", "7\n3 4", "10\n1 2 3 7"],
+        "hidden_inputs": [
+            "6\n3 3",                                         # the pair is two equal values
+            "0\n0 0",                                         # zero target, zero values
+            "3\n1 2 9 8",                                     # pair at the very start
+            "7\n3 4",                                         # minimum array size
+            "6\n3 2 4",
+            "8\n4 1 2 7",                                     # 4+4 would hit target but 4 appears once - no reuse
+            "10\n1 2 3 7",
+            "-8\n-3 -5 1",                                    # negative target and values
+            "1\n-1000000 2 1000001",
+            "11\n1 4 5 8 7",                                  # pair buried in the middle
+            "17\n8 1 2 3 4 5 9",                              # pair spans first and last index
+            "2000000000\n1000000000 5 999999999 1000000000",  # 32-bit sized values
+        ],
     },
     {
         "title": "Two Sum II",
@@ -778,7 +806,16 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is n, line 2 is the space-separated array, line 3 is the target. Output format: the two 0-indexed positions, space-separated.",
         "solve": _solve_two_sum_ii,
         "sample_inputs": ["4\n2 7 11 15\n9"],
-        "hidden_inputs": ["3\n1 2 3\n5", "5\n0 4 3 0 8\n0"],
+        "hidden_inputs": [
+            "2\n1 2\n3",           # minimum n
+            "2\n-5 -5\n-10",       # both negative, equal values
+            "3\n1 2 3\n5",
+            "4\n0 0 5 7\n0",       # zero target, exactly one valid pair
+            "5\n0 4 3 0 8\n0",
+            "5\n-3 4 3 90 -1\n0",  # pair sums to zero via opposite signs
+            "6\n1 2 3 4 5 6\n11",  # answer is the final pair
+            "3\n1000000 999999 1\n1999999",
+        ],
     },
     {
         "title": "Valid Parentheses",
@@ -789,7 +826,21 @@ PROBLEMS = [
         "constraints": "Input format: one line containing the string. Output format: \"true\" or \"false\" (lowercase).",
         "solve": _solve_valid_parentheses,
         "sample_inputs": ["()[]{}"],
-        "hidden_inputs": ["(]", "([)]", "{[]}"],
+        "hidden_inputs": [
+            "(",               # lone opener
+            ")",               # lone closer
+            "]",
+            "(]",
+            "([)]",
+            "{[]}",
+            "(()",             # unclosed opener remains on the stack
+            "())",             # closer with an empty stack
+            ")()(",            # balanced counts, wrong order
+            "{[}]",
+            "()()()",          # repeated siblings
+            "([{}])",
+            "((((((()))))))",  # deep nesting
+        ],
     },
     {
         "title": "Best Time to Buy and Sell Stock",
@@ -800,7 +851,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated prices. Output format: a single integer, the max profit.",
         "solve": _solve_best_time_to_sell_stock,
         "sample_inputs": ["7 1 5 3 6 4"],
-        "hidden_inputs": ["7 6 4 3 1", "2 4 1 7"],
+        "hidden_inputs": [
+            "1",          # single day, no transaction possible
+            "2 1",        # only a loss available
+            "1 2",
+            "5 5 5 5",    # flat prices
+            "7 6 4 3 1",
+            "1 2 3 4 5",  # monotonically rising
+            "5 4 3 2 1",  # monotonically falling
+            "2 4 1 7",
+            "3 2 6 5 0 3",
+            "2 1 4 9 0",  # global min is last and unusable
+            "1 1000000000",
+        ],
     },
     {
         "title": "Maximum Subarray",
@@ -811,7 +874,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated integers (may be negative). Output format: a single integer, the max subarray sum.",
         "solve": _solve_max_subarray,
         "sample_inputs": ["-2 1 -3 4 -1 2 1 -5 4"],
-        "hidden_inputs": ["1", "-1 -2 -3"],
+        "hidden_inputs": [
+            "1",
+            "-5",              # single negative element
+            "0",
+            "-1 -2 -3",
+            "-3 -2 -5 -1 -4",  # all negative, answer is the least negative
+            "0 0 0",
+            "1 -1 1 -1 1",
+            "2 -1 2 -1 2",
+            "5 4 -1 7 8",
+            "-1 5 -2 6 -10 4",
+            "1000000 -1 1000000",
+        ],
     },
     {
         "title": "Trapping Rain Water",
@@ -822,7 +897,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated non-negative heights. Output format: a single integer, total trapped water.",
         "solve": _solve_trapping_rain_water,
         "sample_inputs": ["0 1 0 2 1 0 1 3 2 1 2 1"],
-        "hidden_inputs": ["4 2 0 3 2 5", "0 0 0"],
+        "hidden_inputs": [
+            "0",          # single bar traps nothing
+            "1 2",        # two bars cannot trap
+            "0 0 0",
+            "2 1 2",      # smallest real basin
+            "3 0 3",
+            "1 2 3 4 5",  # strictly increasing traps nothing
+            "5 4 3 2 1",  # strictly decreasing traps nothing
+            "1 0 1 0 1",
+            "5 1 5 1 5",
+            "10 0 10",
+            "4 2 0 3 2 5",
+        ],
     },
     {
         "title": "Binary Tree Inorder Traversal",
@@ -833,7 +920,18 @@ PROBLEMS = [
         "constraints": "Input format: one line, space-separated level-order values with \"null\" for a missing child. Output format: space-separated inorder values.",
         "solve": _solve_binary_tree_inorder,
         "sample_inputs": ["1 null 2 3"],
-        "hidden_inputs": ["5 3 8 1 4 7 9", "10 5 15 2 7 12 20"],
+        "hidden_inputs": [
+            "null",               # empty tree
+            "1",                  # single node
+            "1 2 3",
+            "3 2 null 1",         # left-skewed
+            "1 null 2 null 3",    # right-skewed
+            "1 2 null 3 null 4",  # deep left chain
+            "-1 -2 -3",           # negative values
+            "4 2 6 1 3 5 7",      # complete tree
+            "5 3 8 1 4 7 9",
+            "10 5 15 2 7 12 20",
+        ],
     },
     {
         "title": "Maximum Depth of Binary Tree",
@@ -844,7 +942,16 @@ PROBLEMS = [
         "constraints": "Input format: one line, space-separated level-order values with \"null\" for a missing child. Output format: a single integer.",
         "solve": _solve_max_depth,
         "sample_inputs": ["3 9 20 null null 15 7"],
-        "hidden_inputs": ["1", "null"],
+        "hidden_inputs": [
+            "null",               # empty tree -> 0
+            "1",
+            "1 2",
+            "1 2 3",
+            "1 null 2 null 3",    # right-skewed
+            "1 2 null 3 null 4",  # left-skewed
+            "1 2 3 4 5 6 7",
+            "5 4 8 11 null 13 4 7 2",
+        ],
     },
     {
         "title": "Diameter of Binary Tree",
@@ -855,7 +962,15 @@ PROBLEMS = [
         "constraints": "Input format: one line, space-separated level-order values with \"null\" for a missing child. Output format: a single integer.",
         "solve": _solve_diameter,
         "sample_inputs": ["1 2 3 4 5"],
-        "hidden_inputs": ["1 2", "1"],
+        "hidden_inputs": [
+            "null",                     # empty tree -> 0
+            "1",                        # single node -> 0 edges
+            "1 2",
+            "1 2 3",                    # path through the root
+            "1 2 null 3 null 4",        # skewed, path does not fork
+            "1 2 3 4 5 null null 6 7",  # longest path avoids the root's right side
+            "4 -7 -3 null null -9 -3 9 -7 null null 8",
+        ],
     },
     {
         "title": "Number of Islands",
@@ -866,7 +981,18 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is \"rows cols\", followed by `rows` lines of `cols` space-separated 0/1 values. Output format: a single integer.",
         "solve": _solve_number_of_islands,
         "sample_inputs": ["4 5\n1 1 1 1 0\n1 1 0 1 0\n1 1 0 0 0\n0 0 0 0 0"],
-        "hidden_inputs": ["3 3\n1 1 0\n1 0 0\n0 0 1", "2 2\n0 0\n0 0"],
+        "hidden_inputs": [
+            "1 1\n0",                    # single water cell
+            "1 1\n1",                    # single land cell
+            "2 2\n0 0\n0 0",
+            "2 2\n1 1\n1 1",
+            "1 5\n1 0 1 0 1",            # single row
+            "5 1\n1\n0\n1\n1\n0",        # single column
+            "3 3\n1 0 1\n0 1 0\n1 0 1",  # diagonal touch does NOT connect
+            "3 3\n1 1 1\n1 1 1\n1 1 1",
+            "3 3\n1 1 0\n1 0 0\n0 0 1",
+            "4 4\n1 0 0 1\n0 0 0 0\n0 0 0 0\n1 0 0 1",
+        ],
     },
     {
         "title": "Find if Path Exists in Graph",
@@ -877,7 +1003,17 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is \"n m source destination\", followed by `m` lines each \"u v\" describing an edge. Output format: \"true\" or \"false\".",
         "solve": _solve_find_path_exists,
         "sample_inputs": ["3 2 0 2\n0 1\n1 2"],
-        "hidden_inputs": ["4 2 0 3\n0 1\n2 3", "1 0 0 0"],
+        "hidden_inputs": [
+            "1 0 0 0",                           # source is the destination, no edges
+            "2 0 0 1",                           # no edges at all
+            "2 1 0 1\n0 1",
+            "4 2 0 3\n0 1\n2 3",
+            "3 3 2 0\n0 1\n1 2\n0 2",            # traversal must work both directions
+            "6 3 0 5\n0 1\n1 2\n3 4",            # disconnected components
+            "6 5 0 5\n0 1\n1 2\n2 3\n3 4\n4 5",  # long chain
+            "5 5 0 4\n0 1\n1 2\n2 0\n3 4\n0 3",  # cycle plus a bridge
+            "4 4 1 3\n0 1\n1 2\n2 3\n3 0",
+        ],
     },
     {
         "title": "Course Schedule",
@@ -888,7 +1024,18 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is \"n m\", followed by `m` lines each \"a b\" meaning b is a prerequisite of a. Output format: \"true\" or \"false\".",
         "solve": _solve_course_schedule,
         "sample_inputs": ["2 1\n1 0"],
-        "hidden_inputs": ["2 2\n1 0\n0 1", "4 3\n1 0\n2 1\n3 2"],
+        "hidden_inputs": [
+            "1 0",                      # one course, no prerequisites
+            "3 0",                      # no prerequisites at all
+            "1 1\n0 0",                 # course is its own prerequisite
+            "2 2\n1 0\n0 1",
+            "3 3\n0 1\n1 2\n2 0",       # three-node cycle
+            "4 3\n1 0\n2 1\n3 2",
+            "4 4\n1 0\n2 0\n3 1\n3 2",  # diamond DAG
+            "4 3\n1 0\n2 1\n0 2",       # cycle plus an unrelated free node
+            "6 4\n1 0\n2 1\n4 3\n5 4",  # two independent chains
+            "5 4\n1 0\n2 1\n3 2\n4 3",
+        ],
     },
     {
         "title": "Longest Increasing Subsequence",
@@ -899,7 +1046,18 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated integers. Output format: a single integer.",
         "solve": _solve_lis,
         "sample_inputs": ["10 9 2 5 3 7 101 18"],
-        "hidden_inputs": ["0 1 0 3 2 3", "7 7 7 7"],
+        "hidden_inputs": [
+            "1",
+            "10",
+            "7 7 7 7",    # all equal -> strictly increasing means 1
+            "5 4 3 2 1",  # strictly decreasing
+            "1 2 3 4 5",  # already increasing
+            "2 2 2 1 3",
+            "-1 -2 -3 0",
+            "0 1 0 3 2 3",
+            "4 10 4 3 8 9",
+            "1 3 6 7 9 4 10 5 6",
+        ],
     },
     {
         "title": "Climbing Stairs",
@@ -910,7 +1068,15 @@ PROBLEMS = [
         "constraints": "Input format: one line containing n. Output format: a single integer.",
         "solve": _solve_climbing_stairs,
         "sample_inputs": ["5"],
-        "hidden_inputs": ["2", "1"],
+        "hidden_inputs": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "10",
+            "20",
+            "45",  # largest n whose answer still fits in signed 32-bit
+        ],
     },
     {
         "title": "Coin Change",
@@ -921,7 +1087,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is space-separated coin denominations, line 2 is the target amount. Output format: a single integer.",
         "solve": _solve_coin_change,
         "sample_inputs": ["1 2 5\n11"],
-        "hidden_inputs": ["2\n3", "1\n0"],
+        "hidden_inputs": [
+            "1\n0",    # amount 0 needs no coins
+            "2\n0",
+            "1\n1",
+            "5\n3",    # single coin larger than the amount
+            "2\n3",    # unreachable odd amount
+            "3 7\n5",
+            "7 11\n14",
+            "2 5 10 1\n27",
+            "1\n100",  # answer equals the amount
+            "1 2 5\n100",
+            "186 419 83 408\n6249",
+        ],
     },
 
     # --- string ---
@@ -934,7 +1112,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is s, line 2 is t. Output format: \"true\" or \"false\".",
         "solve": _solve_valid_anagram,
         "sample_inputs": ["anagram\nnagaram"],
-        "hidden_inputs": ["rat\ncar", "a\nab"],
+        "hidden_inputs": [
+            "a\na",
+            "a\nb",
+            "a\nab",       # different lengths
+            "ab\nba",
+            "ab\nab",
+            "xy\nxx",      # same length, wrong letter counts
+            "aacc\nccac",  # same letter set, different multiplicities
+            "rat\ncar",
+            "aaa\naaa",
+            "listen\nsilent",
+            "abcdefghij\njihgfedcba",
+        ],
     },
     {
         "title": "Longest Substring Without Repeating Characters",
@@ -945,7 +1135,19 @@ PROBLEMS = [
         "constraints": "Input format: one line containing s. Output format: a single integer.",
         "solve": _solve_longest_substr_no_repeat,
         "sample_inputs": ["abcabcbb"],
-        "hidden_inputs": ["bbbbb", "pwwkew"],
+        "hidden_inputs": [
+            "a",
+            "aa",
+            "ab",
+            "aab",
+            "au",
+            "abba",     # index must not rewind behind the window start
+            "dvdf",     # repeat sits outside the current window
+            "bbbbb",
+            "pwwkew",
+            "tmmzuxt",
+            "abcdefg",  # no repeats at all
+        ],
     },
     {
         "title": "Longest Palindromic Substring",
@@ -956,7 +1158,19 @@ PROBLEMS = [
         "constraints": "Input format: one line containing s. Output format: the substring itself.",
         "solve": _solve_longest_palindrome,
         "sample_inputs": ["babad"],
-        "hidden_inputs": ["cbbd", "a"],
+        "hidden_inputs": [
+            "a",
+            "aa",
+            "ab",       # no palindrome longer than 1 -> leftmost single char
+            "aaa",
+            "ccc",
+            "cbbd",
+            "abcda",    # ties resolved by the leftmost center
+            "bananas",
+            "racecar",  # whole string is the answer
+            "aacabdkacaa",
+            "abacdfgdcaba",
+        ],
     },
 
     # --- linked_list ---
@@ -969,7 +1183,17 @@ PROBLEMS = [
         "constraints": "Input format: one line, space-separated list values head-to-tail. Output format: space-separated reversed values.",
         "solve": _solve_reverse_linked_list,
         "sample_inputs": ["1 2 3 4 5"],
-        "hidden_inputs": ["1 2", "1"],
+        "hidden_inputs": [
+            "1",         # single node
+            "0",
+            "1 2",
+            "7 7",       # duplicate values
+            "1 2 3",
+            "5 5 5",
+            "-1 -2 -3",  # negative values
+            "100 -100",
+            "1 2 3 4 5 6 7 8 9 10",
+        ],
     },
     {
         "title": "Merge Two Sorted Lists",
@@ -980,7 +1204,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 and line 2 are the two sorted lists, space-separated. Output format: the merged sorted list, space-separated.",
         "solve": _solve_merge_two_lists,
         "sample_inputs": ["1 2 4\n1 3 4"],
-        "hidden_inputs": ["5\n1 2 4", "1 3\n2"],
+        "hidden_inputs": [
+            "1\n2",              # one node each
+            "2\n1",
+            "1 2 3\n",           # second list empty
+            "\n1 2 3",           # first list empty
+            "5\n1 2 4",
+            "1 3\n2",
+            "1 1 1\n1 1 1",      # every value duplicated across both lists
+            "1 2 3\n4 5 6",      # disjoint, first entirely before second
+            "4 5 6\n1 2 3",      # disjoint, reversed
+            "-5 -3\n-4 -2",      # negatives
+            "1 3 5 7\n2 4 6 8",  # strict interleave
+        ],
     },
     {
         "title": "Linked List Cycle",
@@ -991,7 +1227,17 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is the space-separated node values, line 2 is the 0-indexed position the tail connects to (-1 for no cycle). Output format: \"true\" or \"false\".",
         "solve": _solve_linked_list_cycle,
         "sample_inputs": ["3 2 0 -4\n1"],
-        "hidden_inputs": ["1 2\n0", "1\n-1"],
+        "hidden_inputs": [
+            "1\n-1",         # single node, no cycle
+            "1\n0",          # single node pointing at itself
+            "1 2\n0",
+            "1 2\n1",        # tail links to itself
+            "1 2 3\n-1",
+            "1 2 3 4 5\n-1",
+            "1 2 3 4 5\n0",  # cycle spans the whole list
+            "1 2 3 4 5\n4",  # cycle is just the last node
+            "-1 -2 -3\n2",
+        ],
     },
 
     # --- stack_queue ---
@@ -1004,7 +1250,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated integers. Output format: space-separated results, one per input element.",
         "solve": _solve_next_greater_element,
         "sample_inputs": ["2 1 2 4 3"],
-        "hidden_inputs": ["1 2 3 4", "4 3 2 1"],
+        "hidden_inputs": [
+            "1",          # single element has no greater neighbour
+            "5 5 5",      # equal values do not count as greater
+            "1 1 2",
+            "1 2",
+            "2 1",
+            "1 2 3 4",    # every element resolved by its neighbour
+            "4 3 2 1",    # nothing is ever resolved
+            "-1 -2 0",    # negatives
+            "1 3 2 4",
+            "10 9 8 11",  # one late element resolves the whole stack
+            "2 7 3 5 4 6 8",
+        ],
     },
     {
         "title": "Min Stack Operations",
@@ -1016,8 +1274,16 @@ PROBLEMS = [
         "solve": _solve_min_stack,
         "sample_inputs": ["5\npush 5\npush 3\ngetMin\npop\ngetMin"],
         "hidden_inputs": [
-            "4\npush 10\npush 20\ngetMin\ngetMin",
+            "1\npush 5",                                       # no getMin at all
+            "3\npush 1\npush 2\ngetMin",
+            "4\npush 10\npush 20\ngetMin\ngetMin",             # repeated getMin
+            "4\npush 100\ngetMin\npush 50\ngetMin",
+            "5\npush 0\npush 0\ngetMin\npop\ngetMin",          # duplicate minimum
+            "6\npush 5\npop\npush 3\ngetMin\npush 1\ngetMin",  # stack emptied then reused
             "6\npush -2\npush 0\npush -3\ngetMin\npop\ngetMin",
+            "7\npush 2\npush 2\ngetMin\npop\ngetMin\npop\npush 3",
+            "8\npush -1\ngetMin\npush -2\ngetMin\npop\ngetMin\npush -5\ngetMin",
+            "10\npush 3\npush 1\npush 4\ngetMin\npop\ngetMin\npop\ngetMin\npop\npush 9",
         ],
     },
     {
@@ -1029,7 +1295,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated non-negative heights. Output format: a single integer.",
         "solve": _solve_largest_rectangle,
         "sample_inputs": ["2 1 5 6 2 3"],
-        "hidden_inputs": ["2 4", "1 1 1 1"],
+        "hidden_inputs": [
+            "0",          # zero-height bar
+            "5",          # single bar
+            "0 0 0",
+            "2 4",
+            "2 1 2",
+            "3 3 3",
+            "1 1 1 1",
+            "1 0 1 0 1",  # zeros split the histogram
+            "1 2 3 4 5",  # increasing
+            "5 4 3 2 1",  # decreasing
+            "6 2 5 4 5 1 6",
+        ],
     },
 
     # --- heap ---
@@ -1042,7 +1320,17 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is k, line 2 is the space-separated array. Output format: a single integer.",
         "solve": _solve_kth_largest,
         "sample_inputs": ["2\n3 2 1 5 6 4"],
-        "hidden_inputs": ["4\n3 2 3 1 2 4 5 5 6", "1\n7 6 5 4"],
+        "hidden_inputs": [
+            "1\n1",          # single element
+            "1\n5 5 5",
+            "2\n-1 -1",      # negatives with duplicates
+            "3\n3 3 3 3 3",  # kth largest, not kth distinct
+            "1\n-1 -2 -3",
+            "1\n7 6 5 4",
+            "5\n1 2 3 4 5",  # k equals the array length, so the minimum
+            "4\n3 2 3 1 2 4 5 5 6",
+            "6\n10 9 8 7 6 5 4",
+        ],
     },
     {
         "title": "Top K Frequent Elements",
@@ -1053,7 +1341,16 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is k, line 2 is the space-separated array. Output format: space-separated top-k elements.",
         "solve": _solve_top_k_frequent,
         "sample_inputs": ["2\n1 1 1 2 2 3"],
-        "hidden_inputs": ["1\n1", "3\n4 4 4 6 6 2 2 2 2"],
+        "hidden_inputs": [
+            "1\n1",            # single element
+            "1\n-1 -1 -2",
+            "1\n2 2 1 1 1",
+            "1\n1 1 2 2 3",    # frequency tie broken by first appearance
+            "2\n5 5 4 4 3 3",  # every value ties
+            "3\n1 2 3",        # all frequencies are 1
+            "3\n4 4 4 6 6 2 2 2 2",
+            "4\n1 1 1 1 2 2 2 3 3 4",
+        ],
     },
     {
         "title": "Merge K Sorted Lists",
@@ -1064,7 +1361,18 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is k, followed by k lines each a sorted space-separated array. Output format: the merged sorted array, space-separated.",
         "solve": _solve_merge_k_lists,
         "sample_inputs": ["3\n1 4 5\n1 3 4\n2 6"],
-        "hidden_inputs": ["2\n1 2 3\n4 5 6", "1\n1"],
+        "hidden_inputs": [
+            "1\n1",                 # a single one-element list
+            "2\n1\n1",
+            "2\n-5 -5 -5\n-5 -5",   # duplicates across lists
+            "3\n1 2 3\n\n4 5",      # one of the lists is empty
+            "2\n1 1 1\n1 1 1",
+            "2\n1 2 3\n4 5 6",      # disjoint ranges
+            "3\n-3 -1\n-2 0\n1 2",  # negatives interleaving
+            "4\n1\n2\n3\n4",
+            "2\n1 3 5 7 9\n2 4 6 8 10",
+            "5\n1\n2\n3\n4\n5",
+        ],
     },
 
     # --- greedy ---
@@ -1077,7 +1385,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated non-negative integers. Output format: \"true\" or \"false\".",
         "solve": _solve_jump_game,
         "sample_inputs": ["2 3 1 1 4"],
-        "hidden_inputs": ["3 2 1 0 4", "0"],
+        "hidden_inputs": [
+            "0",              # already at the last index
+            "1",
+            "0 1",            # stuck immediately
+            "1 0",
+            "0 0 0",
+            "2 0 0",
+            "1 1 1 1",
+            "3 2 1 0 4",      # the classic zero trap
+            "2 5 0 0",
+            "5 0 0 0 0 0",    # one big jump clears every zero
+            "1 2 3 0 0 0 1",  # reach stalls just short of the end
+        ],
     },
     {
         "title": "Gas Station",
@@ -1088,7 +1408,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is the space-separated gas array, line 2 is the space-separated cost array. Output format: a single integer.",
         "solve": _solve_gas_station,
         "sample_inputs": ["1 2 3 4 5\n3 4 5 1 2"],
-        "hidden_inputs": ["2 3 4\n3 4 3", "5 1 2 3 4\n4 4 1 5 1"],
+        "hidden_inputs": [
+            "1\n1",              # single station, exactly enough fuel
+            "2\n1",
+            "1\n2",              # single station, not enough fuel
+            "2 3 4\n3 4 3",
+            "3 3 4\n3 4 4",      # total deficit of exactly one
+            "3 1 1\n1 2 2",      # only station 0 works
+            "1 2 3 3\n2 1 5 1",  # only the last station works
+            "5 8 2 8\n6 5 6 6",
+            "5 1 2 3 4\n4 4 1 5 1",
+            "6 1 4 3 5\n3 8 2 6 5",
+            "4 5 2 6 5 3\n3 2 7 3 2 9",
+        ],
     },
     {
         "title": "Candy",
@@ -1099,7 +1431,20 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated ratings. Output format: a single integer.",
         "solve": _solve_candy,
         "sample_inputs": ["1 0 2"],
-        "hidden_inputs": ["1 2 2", "1 3 4 5 2"],
+        "hidden_inputs": [
+            "1",          # one child
+            "1 1",        # equal ratings need no extra candy
+            "1 2",
+            "2 1",
+            "5 5 5 5",    # all equal
+            "1 2 2",
+            "1 2 3 2 1",  # single peak
+            "1 0 2 0 1",  # alternating valleys
+            "1 3 2 2 1",
+            "1 2 3 4 5",  # strictly increasing
+            "5 4 3 2 1",  # strictly decreasing
+            "1 3 4 5 2",
+        ],
     },
 
     # --- backtracking ---
@@ -1112,7 +1457,17 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated distinct integers. Output format: one subset per line, space-separated values, ordered by increasing size.",
         "solve": _solve_subsets,
         "sample_inputs": ["1 2 3"],
-        "hidden_inputs": ["1 2", "5"],
+        "hidden_inputs": [
+            "5",      # single element
+            "1",
+            "1 2",
+            "-1 -2",  # negative values
+            "3 1 2",  # output follows input order, not sorted order
+            "0 5 10",
+            "1 2 3 4",
+            "1 2 3 4 5",
+            "7 8 9 10 11 12",
+        ],
     },
     {
         "title": "Permutations",
@@ -1123,7 +1478,15 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated distinct integers. Output format: one permutation per line, space-separated values.",
         "solve": _solve_permutations,
         "sample_inputs": ["1 2 3"],
-        "hidden_inputs": ["1 2", "1"],
+        "hidden_inputs": [
+            "1",    # single element
+            "1 2",
+            "2 1",  # order is relative to the input
+            "3 2 1",
+            "-1 0 1",
+            "1 2 3 4",
+            "5 6 7 8 9",
+        ],
     },
     {
         "title": "N-Queens Count",
@@ -1134,7 +1497,16 @@ PROBLEMS = [
         "constraints": "Input format: one line containing n. Output format: a single integer.",
         "solve": _solve_n_queens_count,
         "sample_inputs": ["4"],
-        "hidden_inputs": ["1", "8"],
+        "hidden_inputs": [
+            "1",  # trivially one placement
+            "2",  # no solution exists
+            "3",  # no solution exists
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+        ],
     },
 
     # --- binary_search ---
@@ -1147,7 +1519,21 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is the sorted array, line 2 is the target. Output format: a single integer.",
         "solve": _solve_binary_search,
         "sample_inputs": ["-1 0 3 5 9 12\n9"],
-        "hidden_inputs": ["-1 0 3 5 9 12\n2", "5\n5"],
+        "hidden_inputs": [
+            "5\n5",              # single element, found
+            "5\n-5",             # single element, absent
+            "1 2\n2",
+            "1 2 3 4 5\n1",      # first index
+            "1 2 3 4 5\n5",      # last index
+            "1 2 3 4 5\n3",      # exact middle
+            "1 2 3 4 5\n0",      # below the whole range
+            "1 2 3 4 5\n6",      # above the whole range
+            "1 2 3 4 5 6\n6",    # even length, last index
+            "-10 -5 0 5 10\n-10",
+            "-10 -5 0 5 10\n0",  # zero as a target among negatives
+            "-1 0 3 5 9 12\n2",
+            "1 3 5 7 9 11 13\n7",
+        ],
     },
     {
         "title": "Search in Rotated Sorted Array",
@@ -1158,7 +1544,21 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is the rotated array, line 2 is the target. Output format: a single integer.",
         "solve": _solve_search_rotated,
         "sample_inputs": ["4 5 6 7 0 1 2\n0"],
-        "hidden_inputs": ["4 5 6 7 0 1 2\n3", "1\n0"],
+        "hidden_inputs": [
+            "1\n1",              # single element, found
+            "1\n0",              # single element, absent
+            "3 1\n1",
+            "1 3\n3",
+            "1 2 3 4 5\n1",      # rotation offset of zero
+            "1 2 3 4 5\n5",
+            "5 1 2 3 4\n1",      # pivot right after the start
+            "2 3 4 5 1\n1",      # pivot at the very end
+            "4 5 6 7 0 1 2\n4",  # first index
+            "4 5 6 7 0 1 2\n2",  # last index
+            "4 5 6 7 0 1 2\n7",  # element just before the pivot
+            "4 5 6 7 0 1 2\n3",  # absent, falls inside the rotation gap
+            "6 7 8 1 2 3 4 5\n8",
+        ],
     },
     {
         "title": "Median of Two Sorted Arrays",
@@ -1169,7 +1569,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 and line 2 are the two sorted arrays, space-separated. Output format: the median, formatted as described above.",
         "solve": _solve_median_two_arrays,
         "sample_inputs": ["1 3\n2"],
-        "hidden_inputs": ["1 2\n3 4", "0 0\n0 0"],
+        "hidden_inputs": [
+            "2\n",               # second array empty
+            "\n1",               # first array empty
+            "1\n1",
+            "1\n2",              # even total, fractional median
+            "1 2\n3 4",
+            "0 0\n0 0",
+            "1 1 1\n1 1 1",      # every value identical
+            "1 2 3\n4",          # arrays do not overlap
+            "-5 -3 -1\n-2 0 2",  # negative fractional median
+            "100000\n100001",
+            "1 2 3 4 5\n6 7 8 9 10",
+        ],
     },
 
     # --- two_pointers ---
@@ -1182,7 +1594,18 @@ PROBLEMS = [
         "constraints": "Input format: one line, sorted space-separated integers (may contain duplicates). Output format: the deduplicated array, space-separated.",
         "solve": _solve_remove_duplicates,
         "sample_inputs": ["0 0 1 1 1 2 2 3 3 4"],
-        "hidden_inputs": ["1 1 2", "1"],
+        "hidden_inputs": [
+            "1",
+            "1 1",     # every element is a duplicate
+            "1 2",     # no duplicates
+            "1 1 2",
+            "1 1 1 1",
+            "1 2 3",
+            "-1 0 1",  # negatives
+            "-3 -3 -1 0 0 1",
+            "5 5 5 5 5 5 5 5 5 5",
+            "0 0 0 1 1 2 3 3 3 3",
+        ],
     },
     {
         "title": "Container With Most Water",
@@ -1193,7 +1616,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated non-negative heights. Output format: a single integer.",
         "solve": _solve_container_water,
         "sample_inputs": ["1 8 6 2 5 4 8 3 7"],
-        "hidden_inputs": ["1 1", "4 3 2 1 4"],
+        "hidden_inputs": [
+            "0 0",        # zero heights
+            "1 1",
+            "1 2",
+            "2 1",
+            "1 2 1",
+            "5 5 5 5 5",  # flat, so width decides
+            "1 0 0 0 1",  # tallest pair is also the widest pair
+            "1 2 3 4 5",
+            "4 3 2 1 4",
+            "100 1 100",
+            "2 3 4 5 18 17 6",
+        ],
     },
     {
         "title": "3Sum",
@@ -1204,7 +1639,20 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated integers. Output format: one triplet per line, space-separated, ascending order; empty output if none.",
         "solve": _solve_three_sum,
         "sample_inputs": ["-1 0 1 2 -1 -4"],
-        "hidden_inputs": ["0 1 1", "0 0 0"],
+        "hidden_inputs": [
+            "0 0",      # fewer than three elements
+            "5",
+            "1 2 3",    # no triplet sums to zero
+            "0 0 0",
+            "0 1 1",
+            "-1 -1 2",
+            "1 -1 0",
+            "0 0 0 0",  # duplicate triplet must be emitted once
+            "-2 0 1 1 2",
+            "3 0 -2 -1 1 2",
+            "-1 0 1 2 -1 -4 -2 -3 3 0 4",
+            "-4 -2 -2 -2 0 1 2 2 2 3 3 4 4 6 6",
+        ],
     },
 
     # --- sliding_window ---
@@ -1217,7 +1665,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is the space-separated array, line 2 is k. Output format: the max average.",
         "solve": _solve_max_avg_subarray,
         "sample_inputs": ["4 4 4 4\n2"],
-        "hidden_inputs": ["2 2 2 6\n2", "5 5\n2"],
+        "hidden_inputs": [
+            "5\n1",          # single element, window of one
+            "-5 -5\n1",
+            "1 2\n2",        # window covers the whole array
+            "0 0 0\n1",
+            "5 5\n2",
+            "1 2 3 4 5\n1",  # window of one, so the maximum element
+            "1 2 3 4 5\n5",  # window equals the array
+            "2 2 2 6\n2",
+            "-1 -2 -3\n2",   # all negative, fractional average
+            "1 12 -5 -6 50 3\n4",
+            "100000 100000\n2",
+        ],
     },
     {
         "title": "Longest Substring with At Most K Distinct Characters",
@@ -1228,7 +1688,20 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is s, line 2 is k. Output format: a single integer.",
         "solve": _solve_longest_k_distinct,
         "sample_inputs": ["eceba\n2"],
-        "hidden_inputs": ["aa\n1", "abcadcacacaca\n3"],
+        "hidden_inputs": [
+            "a\n0",       # k = 0 admits nothing
+            "ab\n0",
+            "a\n1",
+            "ab\n1",
+            "aa\n1",
+            "aaaa\n2",    # fewer distinct chars than k
+            "abc\n5",     # k exceeds the alphabet present
+            "aabbcc\n1",
+            "aabbcc\n3",  # k covers everything
+            "abcabcabc\n2",
+            "abaccc\n2",
+            "abcadcacacaca\n3",
+        ],
     },
     {
         "title": "Minimum Window Substring",
@@ -1239,7 +1712,19 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is s, line 2 is t. Output format: the minimum window substring, or an empty line if none.",
         "solve": _solve_min_window_substring,
         "sample_inputs": ["ADOBECODEBANC\nABC"],
-        "hidden_inputs": ["a\na", "a\naa"],
+        "hidden_inputs": [
+            "a\na",                 # s equals t
+            "a\naa",                # t needs more copies than s has
+            "ab\na",
+            "ab\nb",
+            "aa\naa",
+            "abcdef\nxyz",          # no character of t occurs in s
+            "bba\nab",              # window must shrink from the left
+            "ABC\nCBA",             # t is a permutation of s
+            "aaaaaaaaaa\naaa",      # many equally short windows
+            "ADOBECODEBANC\nABBC",  # duplicate letter in t raises the requirement
+            "cabwefgewcwaefgcf\ncae",
+        ],
     },
 
     # --- bit_manipulation ---
@@ -1252,7 +1737,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated integers. Output format: a single integer.",
         "solve": _solve_single_number,
         "sample_inputs": ["4 1 2 1 2"],
-        "hidden_inputs": ["2 2 1", "1"],
+        "hidden_inputs": [
+            "1",          # the lone element is the answer
+            "0",
+            "-1",
+            "0 1 1",      # the answer is zero
+            "2 2 1",
+            "3 1 1 2 2",  # single element first
+            "1 2 1 2 5",  # single element last
+            "1 1 2 2 3",
+            "-1 -1 -2",   # negative answer
+            "7 3 5 3 5",
+            "1000000 1 1",
+        ],
     },
     {
         "title": "Counting Bits",
@@ -1263,7 +1760,19 @@ PROBLEMS = [
         "constraints": "Input format: one line containing n. Output format: space-separated counts for i = 0..n.",
         "solve": _solve_counting_bits,
         "sample_inputs": ["5"],
-        "hidden_inputs": ["2", "0"],
+        "hidden_inputs": [
+            "0",  # just i = 0
+            "1",
+            "2",
+            "3",
+            "7",  # last index before a new bit length
+            "8",  # first index of a new bit length
+            "15",
+            "16",
+            "31",
+            "32",
+            "100",
+        ],
     },
     {
         "title": "Maximum XOR of Two Numbers in an Array",
@@ -1274,7 +1783,19 @@ PROBLEMS = [
         "constraints": "Input format: one line of space-separated integers. Output format: a single integer.",
         "solve": _solve_max_xor,
         "sample_inputs": ["3 10 5 25 2 8"],
-        "hidden_inputs": ["2 4", "8 10 2"],
+        "hidden_inputs": [
+            "0 0",           # minimum size, answer zero
+            "1 1",           # identical values xor to zero
+            "0 1",
+            "8 1",
+            "2 4",
+            "5 5 5",         # every pair is identical
+            "8 10 2",
+            "1 3 5 7 9",
+            "1 2 3 4 5 6 7",
+            "2147483647 0",  # 32-bit maximum
+            "14 70 53 83 49 91 36 80 92 51 66 70",
+        ],
     },
 
     # --- math ---
@@ -1287,7 +1808,21 @@ PROBLEMS = [
         "constraints": "Input format: one line containing the integer. Output format: a single integer.",
         "solve": _solve_reverse_integer,
         "sample_inputs": ["123"],
-        "hidden_inputs": ["-123", "120"],
+        "hidden_inputs": [
+            "0",
+            "1",
+            "-1",
+            "10",           # trailing zero disappears
+            "-10",
+            "100",
+            "120",
+            "-120",         # negative with a trailing zero
+            "-123",
+            "1463847412",   # reverses to exactly 2147483641, just inside range
+            "1534236469",   # overflows, so 0
+            "2147483647",   # 32-bit max, overflows when reversed
+            "-2147483648",  # 32-bit min, overflows when reversed
+        ],
     },
     {
         "title": "Pow(x, n)",
@@ -1298,7 +1833,21 @@ PROBLEMS = [
         "constraints": "Input format: line 1 is x, line 2 is n (n >= 0). Output format: a single integer.",
         "solve": _solve_pow,
         "sample_inputs": ["2\n10"],
-        "hidden_inputs": ["3\n0", "5\n3"],
+        "hidden_inputs": [
+            "0\n0",      # zero to the zero is 1
+            "1\n0",
+            "2\n0",
+            "3\n0",
+            "10\n0",
+            "0\n5",      # zero base
+            "1\n1000",   # one base, large exponent
+            "-1\n999",   # odd exponent keeps the sign
+            "-1\n1000",  # even exponent drops the sign
+            "-2\n3",
+            "-2\n10",
+            "5\n3",
+            "2\n30",     # largest power of two inside signed 32-bit
+        ],
     },
     {
         "title": "Integer to Roman",
@@ -1309,7 +1858,23 @@ PROBLEMS = [
         "constraints": "Input format: one line containing the integer. Output format: the Roman numeral string.",
         "solve": _solve_int_to_roman,
         "sample_inputs": ["1994"],
-        "hidden_inputs": ["58", "3"],
+        "hidden_inputs": [
+            "1",     # smallest input
+            "3",
+            "4",     # subtractive form
+            "9",
+            "14",
+            "40",
+            "44",
+            "58",
+            "90",
+            "400",
+            "900",
+            "1000",
+            "2024",
+            "3888",  # longest numeral in the valid range
+            "3999",  # largest input
+        ],
     },
 ]
 
