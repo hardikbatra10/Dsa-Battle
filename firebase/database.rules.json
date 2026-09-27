@@ -1,0 +1,28 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "rooms": {
+      "$roomCode": {
+        "messages": {
+          ".read": "auth != null",
+
+          "$messageId": {
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid",
+
+            ".validate": "newData.hasChildren(['uid', 'username', 'text', 'createdAt'])",
+
+            "uid": { ".validate": "newData.val() === auth.uid" },
+            "username": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 150" },
+            "text": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 1000" },
+            "createdAt": { ".validate": "newData.val() === now" },
+            "$other": { ".validate": false }
+          }
+        },
+
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}

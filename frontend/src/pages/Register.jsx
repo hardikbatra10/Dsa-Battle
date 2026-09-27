@@ -7,6 +7,7 @@ import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import ErrorBanner from '../components/common/ErrorBanner';
 import Card from '../components/common/Card';
+import GoogleSignInButton from '../components/common/GoogleSignInButton';
 
 export default function Register() {
   const { register } = useAuth();
@@ -98,6 +99,8 @@ export default function Register() {
             Sign up
           </Button>
         </form>
+
+        <GoogleSignInButton label="Sign up with Google" />
       </Card>
 
       <p className="mt-6 text-sm text-ink-soft">

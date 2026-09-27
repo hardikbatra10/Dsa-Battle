@@ -38,10 +38,14 @@ class SubmitSolutionView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check room is active
-        if room.status != "active":
+        # Settle first so an expired-but-still-"active" room is seen as
+        # finished here, rather than quietly accepting a late submission as
+        # if the contest were still running.
+        room.settle_if_expired()
+
+        if room.status == "waiting":
             return Response(
-                {"error": "Room is not active"},
+                {"error": "Contest has not started yet."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -51,12 +55,13 @@ class SubmitSolutionView(APIView):
                 {"error": "Problem does not belong to this room"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        if room.settle_if_expired():
-            return Response(
-                {"error" : "Room has ended, No more Submissions allowed"},
-                status = status.HTTP_400_BAD_REQUEST
-            )
+
+        # A finished room no longer rejects submissions. Participants often
+        # want to finish a problem they were midway through, so the code is
+        # still judged and the verdict still returned - it simply does not
+        # count towards the leaderboard. `counted` is decided here, from the
+        # room's settled status, and never from anything the client sends.
+        counted = room.status == "active"
         
         # A Judge0 outage or exhausted quota is an infrastructure failure, not
         # a verdict: report it as such and record no Submission, so the user
@@ -86,7 +91,8 @@ class SubmitSolutionView(APIView):
         submission = serializer.save(
             user=request.user,
             verdict=outcome["verdict"],
-            failure_detail=failure_detail
+            failure_detail=failure_detail,
+            counted=counted
         )
         response_serializer = SubmissionSerializer(submission)
         return Response(
@@ -121,9 +127,12 @@ class RunSolutionView(APIView):
 
         room.settle_if_expired()
 
-        if room.status != "active":
+        # Only a contest that hasn't started is off limits. Running the sample
+        # cases never affected the leaderboard, so there is nothing to protect
+        # by blocking it once the clock has run out.
+        if room.status == "waiting":
             return Response(
-                {"error": "Room is not active"},
+                {"error": "Contest has not started yet."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 

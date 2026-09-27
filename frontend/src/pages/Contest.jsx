@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Play, CheckCircle2, XCircle, Square } from 'lucide-react';
+import {
+  Send, Play, CheckCircle2, XCircle, Square, Flag,
+  MessageSquare, PanelRightClose,
+} from 'lucide-react';
 import { getRoom, endRoom, getLeaderboard } from '../api/rooms';
 import { listProblems } from '../api/problems';
 import { submitSolution, runSolution, getSubmissionHistory } from '../api/submissions';
@@ -14,16 +17,18 @@ import ProblemSidebar from '../components/Sidebar/ProblemSidebar';
 import ProblemCard from '../components/ProblemCard/ProblemCard';
 import CodeEditor from '../components/CodeEditor/CodeEditor';
 import Leaderboard from '../components/Leaderboard/Leaderboard';
+import RoomChat from '../components/Chat/RoomChat';
 import Select from '../components/common/Select';
 import Button from '../components/common/Button';
 import ErrorBanner from '../components/common/ErrorBanner';
+import Modal from '../components/common/Modal';
 import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 import TestCaseResult from '../components/common/TestCaseResult';
 
 const ROOM_POLL_MS = 5000;
 const LEADERBOARD_POLL_MS = 6000;
 const CODE_STORAGE_PREFIX = 'dsa_battle_code_';
-const REDIRECT_DELAY_MS = 4000;
+const CHAT_OPEN_KEY = 'dsa_battle_chat_open';
 
 export default function Contest() {
   const { roomCode } = useParams();
@@ -50,6 +55,16 @@ export default function Contest() {
   const [isRunning, setIsRunning] = useState(false);
   const [runError, setRunError] = useState('');
   const [isExpiredLocally, setIsExpiredLocally] = useState(false);
+  const [hasSeenEndNotice, setHasSeenEndNotice] = useState(false);
+  // Chat is always present, but collapsible: on a narrow laptop a permanent
+  // third column leaves the editor too cramped to work in.
+  const [isChatOpen, setIsChatOpen] = useState(
+    () => localStorage.getItem(CHAT_OPEN_KEY) !== 'false'
+  );
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_OPEN_KEY, String(isChatOpen));
+  }, [isChatOpen]);
   const [isEnding, setIsEnding] = useState(false);
 
   // Initial load: room, the full problem bank (there's no "get problem by id"
@@ -141,9 +156,10 @@ export default function Contest() {
   const isCreator = room && room.creator_username === user?.username;
   const isContestOver = room?.status === 'finished' || isExpiredLocally;
 
-  useEffect(() => {
-    if (isContestOver) setTab('leaderboard');
-  }, [isContestOver]);
+  // Deliberately no forced tab switch here. The end-of-contest dialog
+  // announces the result and offers the leaderboard; dragging someone off
+  // the problem they were midway through would defeat the whole point of
+  // letting them carry on.
 
   const refreshRoom = useCallback(async () => {
     try {
@@ -183,15 +199,10 @@ export default function Contest() {
     refreshRoom();
   }
 
-  // Once the room is authoritatively finished, everyone still on this page
-  // gets bounced to their dashboard instead of having to leave manually.
-  useEffect(() => {
-    if (room?.status !== 'finished') return undefined;
-    const timeout = setTimeout(() => {
-      navigate('/dashboard', { replace: true });
-    }, REDIRECT_DELAY_MS);
-    return () => clearTimeout(timeout);
-  }, [room?.status, navigate]);
+  // When the contest ends the page stays exactly where it is. Nobody is
+  // redirected: the dialog below says the scoring window has closed, and
+  // everyone is free to keep working on the problems afterwards.
+  const showEndNotice = isContestOver && !hasSeenEndNotice;
 
   async function handleEndRoom() {
     if (!window.confirm('End this room for everyone? This cannot be undone.')) return;
@@ -320,14 +331,13 @@ export default function Contest() {
           </div>
           <div className="flex-1 overflow-y-auto p-5">
             {isContestOver && (
-              <ErrorBanner
-                message={
-                  room.status === 'finished'
-                    ? 'Contest ended — redirecting to your dashboard…'
-                    : "Time's up — submissions are closed."
-                }
-                className="mb-4"
-              />
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-ink-soft">
+                <Flag size={16} className="mt-0.5 shrink-0 text-ink-faint" />
+                <span>
+                  Contest ended. You can keep solving these problems, but new submissions
+                  are no longer counted towards the leaderboard.
+                </span>
+              </div>
             )}
             {tab === 'problem' ? (
               <ProblemCard problem={activeProblem} />
@@ -341,7 +351,6 @@ export default function Contest() {
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
             <Select
               value={activeLanguage}
-              disabled={isContestOver}
               onChange={(event) =>
                 setLanguageByProblem((prev) => ({ ...prev, [activeProblemId]: event.target.value }))
               }
@@ -358,7 +367,7 @@ export default function Contest() {
                 variant="secondary"
                 onClick={handleRun}
                 isLoading={isRunning}
-                disabled={isContestOver || !activeProblemId || isSubmitting}
+                disabled={!activeProblemId || isSubmitting}
               >
                 <Play size={15} />
                 Run
@@ -366,10 +375,10 @@ export default function Contest() {
               <Button
                 onClick={handleSubmit}
                 isLoading={isSubmitting}
-                disabled={isContestOver || !activeProblemId || isRunning}
+                disabled={!activeProblemId || isRunning}
               >
                 <Send size={15} />
-                Submit Solution
+                {isContestOver ? 'Submit (not counted)' : 'Submit Solution'}
               </Button>
             </div>
           </div>
@@ -378,7 +387,6 @@ export default function Contest() {
             <CodeEditor
               language={activeLanguage}
               value={activeCode}
-              readOnly={isContestOver}
               onChange={(value) =>
                 setCodeByProblem((prev) => ({ ...prev, [activeProblemId]: value }))
               }
@@ -436,7 +444,70 @@ export default function Contest() {
             </div>
           )}
         </section>
+
+        {/* Chat lives here rather than behind a tab so it is visible the whole
+            time, the way a voice channel would be. On screens below lg the
+            row stacks, so this becomes a panel underneath the editor. */}
+        <aside
+          className={`flex shrink-0 flex-col border-t border-border lg:border-l lg:border-t-0 ${
+            isChatOpen ? 'h-72 lg:h-auto lg:w-80' : 'lg:w-12'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
+            {isChatOpen && (
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                Room chat
+              </h2>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsChatOpen((open) => !open)}
+              aria-label={isChatOpen ? 'Hide room chat' : 'Show room chat'}
+              title={isChatOpen ? 'Hide chat' : 'Show chat'}
+              className="ml-auto rounded-md p-1 text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+            >
+              {isChatOpen ? <PanelRightClose size={16} /> : <MessageSquare size={16} />}
+            </button>
+          </div>
+
+          {isChatOpen && (
+            <div className="min-h-0 flex-1">
+              <RoomChat roomCode={roomCode} />
+            </div>
+          )}
+        </aside>
       </div>
+
+      <Modal
+        open={showEndNotice}
+        title="Contest has ended"
+        icon={<Flag size={18} className="text-ink-faint" />}
+        onClose={() => setHasSeenEndNotice(true)}
+      >
+        <p className="text-sm leading-relaxed text-ink-soft">
+          The scoring window for this room is closed, and the leaderboard is final.
+          Submissions from now on will not be counted.
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-soft">
+          You can stay and keep working through the problems for practice - your
+          code is still run and judged, it just no longer affects the standings.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+            Back to dashboard
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setHasSeenEndNotice(true);
+              setTab('leaderboard');
+            }}
+          >
+            View final standings
+          </Button>
+          <Button onClick={() => setHasSeenEndNotice(true)}>Keep practising</Button>
+        </div>
+      </Modal>
     </ContestLayout>
   );
 }

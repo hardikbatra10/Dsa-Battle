@@ -48,6 +48,13 @@ class Submission(models.Model):
         null = True,
         blank = True
     )
+    # False for a submission made after the room's clock ran out. Those are
+    # still judged and stored so a participant can finish a problem for their
+    # own practice, but they are left out of the room leaderboard: once the
+    # contest is over the final standings must not be able to change.
+    counted = models.BooleanField(
+        default = True
+    )
     submitted_at = models.DateTimeField(
         auto_now_add = True
     )

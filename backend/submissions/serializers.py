@@ -16,13 +16,17 @@ class SubmissionSerializer(serializers.ModelSerializer):
             'language',
             'verdict',
             'failure_detail',
+            'counted',
             'submitted_at'
         ]
 
+        # counted is decided server-side from the room's status; a client
+        # must never be able to mark its own late submission as counting.
         read_only_fields = [
             'user',
             'verdict',
             'failure_detail',
+            'counted',
             'submitted_at'
         ]
 
@@ -54,6 +58,7 @@ class SubmissionHistorySerializer(serializers.ModelSerializer):
             "problem_title",
             "language",
             "verdict",
+            "counted",
             "submitted_at",
         ]
 
@@ -97,6 +102,7 @@ class MySubmissionSerializer(serializers.ModelSerializer):
             "room_code",
             "language",
             "verdict",
+            "counted",
             "submitted_at",
         ]
 
@@ -131,5 +137,6 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             "code",
             "verdict",
             "failure_detail",
+            "counted",
             "submitted_at",
         ]

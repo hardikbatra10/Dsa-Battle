@@ -19,3 +19,9 @@ export function getMe() {
 export function getProfile() {
   return api.get('/users/profile/');
 }
+
+// POST /api/users/google/  { id_token } -> { access, refresh, created }
+// Trades a Firebase Google ID token for this app's own JWT pair.
+export function googleLogin(idToken) {
+  return api.post('/users/google/', { id_token: idToken });
+}

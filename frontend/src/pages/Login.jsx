@@ -7,6 +7,7 @@ import Input from '../components/common/Input';
 import Button from '../components/common/Button';
 import ErrorBanner from '../components/common/ErrorBanner';
 import Card from '../components/common/Card';
+import GoogleSignInButton from '../components/common/GoogleSignInButton';
 
 export default function Login() {
   const { login } = useAuth();
@@ -68,6 +69,8 @@ export default function Login() {
             Log in
           </Button>
         </form>
+
+        <GoogleSignInButton label="Continue with Google" />
       </Card>
 
       <p className="mt-6 text-sm text-ink-soft">

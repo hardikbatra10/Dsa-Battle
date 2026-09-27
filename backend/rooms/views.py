@@ -10,6 +10,7 @@ import uuid, random
 from django.utils import timezone
 
 
+
 class CreateRoomView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -94,7 +95,6 @@ class JoinRoomView(APIView):
             )
         
         room.participants.add(request.user)
-
 
         response_serializer = RoomSerializer(room)
 
@@ -240,16 +240,21 @@ class LeaderboardView(APIView):
         participants = room.participants.all()
         leaderboard = []
         for participant in participants:
+            # counted=True excludes practice submissions made after the
+            # contest ended, so the final standings stay frozen once the
+            # clock runs out even though people are still solving.
             accepted_submissions = Submission.objects.filter(
                 user = participant,
                 room = room,
-                verdict = "accepted"   
+                verdict = "accepted",
+                counted = True
             )
             solved = accepted_submissions.values("problem").distinct().count()
 
             attempts = Submission.objects.filter(
                 room=room,
-                user=participant
+                user=participant,
+                counted=True
             ).count()
             
             leaderboard.append(

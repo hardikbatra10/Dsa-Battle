@@ -9,6 +9,7 @@ import { TOPIC_LABELS } from '../utils/formatters';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import ErrorBanner from '../components/common/ErrorBanner';
+import RoomChat from '../components/Chat/RoomChat';
 import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 import { StatusBadge, DifficultyBadge, Badge } from '../components/common/Badge';
 
@@ -163,6 +164,18 @@ export default function RoomLobby() {
           ))}
         </ul>
       </Card>
+
+      {/* Not <Card>: Card hard-codes p-6, and appending p-0 is not a reliable
+          override - both are the same Tailwind utility group, so which one
+          wins depends on stylesheet order rather than class order. */}
+      <div className="mb-4 overflow-hidden rounded-xl border border-border bg-surface">
+        <div className="border-b border-border px-5 py-3">
+          <h2 className="text-sm font-semibold text-ink">Room chat</h2>
+        </div>
+        <div className="h-80">
+          <RoomChat roomCode={roomCode} />
+        </div>
+      </div>
 
       <ErrorBanner message={actionError} className="mb-4" />
 
