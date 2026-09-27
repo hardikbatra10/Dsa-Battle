@@ -73,6 +73,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CSRF_TRUSTED_ORIGINS = [
     "https://peer-code-battle.vercel.app",
+    "http://localhost:3000",
 ]
 
 ROOT_URLCONF = 'config.urls'

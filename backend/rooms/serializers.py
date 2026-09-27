@@ -29,6 +29,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'selected_problems',
             'number_of_questions',
             'time_limit_minutes',
+            'max_participants',
             'created_at',
             'status',
             'started_at',
@@ -44,6 +45,15 @@ class RoomSerializer(serializers.ModelSerializer):
             'started_at',
             'ended_at'
         ]
+
+    def validate_max_participants(self, value):
+        low, high = Room.MIN_PARTICIPANTS, Room.MAX_PARTICIPANTS
+        if not low <= value <= high:
+            raise serializers.ValidationError(
+                f"A room must hold between {low} and {high} participants."
+            )
+        return value
+
 
 class JoinRoomSerializer(serializers.Serializer):
     room_code = serializers.CharField(max_length = 8)
@@ -79,6 +89,7 @@ class MyRoomSerializer(serializers.ModelSerializer):
             'difficulty',
             'number_of_questions',
             'time_limit_minutes',
+            'max_participants',
             'status',
             'created_at',
             'started_at',

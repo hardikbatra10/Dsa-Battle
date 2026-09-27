@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Copy, Check, Users, Crown, Clock, LogOut, Play } from 'lucide-react';
+import { Copy, Check, Users, Crown, Clock, LogOut, Play, AlertTriangle } from 'lucide-react';
 import { getRoom, startRoom, leaveRoom } from '../api/rooms';
 import { getApiErrorMessage } from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { usePolling } from '../hooks/usePolling';
 import { TOPIC_LABELS } from '../utils/formatters';
 import Card from '../components/common/Card';
+import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import ErrorBanner from '../components/common/ErrorBanner';
 import RoomChat from '../components/Chat/RoomChat';
@@ -26,6 +27,9 @@ export default function RoomLobby() {
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  // Set when the backend refuses an under-capacity start, which is what
+  // drives the force-start prompt.
+  const [shortfall, setShortfall] = useState(null);
 
   const fetchRoom = useCallback(async () => {
     try {
@@ -45,14 +49,21 @@ export default function RoomLobby() {
 
   usePolling(fetchRoom, POLL_INTERVAL_MS, true);
 
-  async function handleStart() {
+  async function handleStart({ force = false } = {}) {
     setActionError('');
     setIsStarting(true);
     try {
-      await startRoom(roomCode);
+      await startRoom(roomCode, { force });
       navigate(`/rooms/${roomCode}/contest`, { replace: true });
     } catch (err) {
-      setActionError(getApiErrorMessage(err, 'Could not start the room.'));
+      // 409 is not a failure so much as a question: the room is not full yet,
+      // and the creator gets to decide whether to start anyway.
+      const data = err?.response?.data;
+      if (err?.response?.status === 409 && data?.can_force) {
+        setShortfall({ joined: data.joined, capacity: data.capacity });
+      } else {
+        setActionError(getApiErrorMessage(err, 'Could not start the room.'));
+      }
       setIsStarting(false);
     }
   }
@@ -147,7 +158,8 @@ export default function RoomLobby() {
       <Card className="mb-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-faint">
-            Participants ({room.participant_usernames.length})
+            Participants ({room.participant_usernames.length}
+            {room.max_participants ? ` / ${room.max_participants}` : ''})
           </h2>
           <Users size={16} className="text-ink-faint" />
         </div>
@@ -181,7 +193,7 @@ export default function RoomLobby() {
 
       <div className="flex flex-wrap gap-3">
         {isCreator && room.status === 'waiting' && (
-          <Button onClick={handleStart} isLoading={isStarting} className="flex-1">
+          <Button onClick={() => handleStart()} isLoading={isStarting} className="flex-1">
             <Play size={16} />
             Start Room
           </Button>
@@ -204,6 +216,35 @@ export default function RoomLobby() {
           Waiting for the room creator to start the contest…
         </p>
       )}
+
+      <Modal
+        open={shortfall !== null}
+        title="Not everyone has joined"
+        icon={<AlertTriangle size={18} className="text-warning" />}
+        onClose={() => setShortfall(null)}
+      >
+        <p className="text-sm leading-relaxed text-ink-soft">
+          {shortfall?.joined} of {shortfall?.capacity} participants have joined this
+          room. Starting now means the people who have not arrived yet will not be
+          able to take part - once a contest is running, the room is closed to new
+          joiners.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={() => setShortfall(null)}>
+            Keep waiting
+          </Button>
+          <Button
+            variant="danger"
+            isLoading={isStarting}
+            onClick={() => {
+              setShortfall(null);
+              handleStart({ force: true });
+            }}
+          >
+            Force start
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Send, Play, CheckCircle2, XCircle, Square, Flag,
-  MessageSquare, PanelRightClose,
+  MessageSquare, PanelRightClose, LogOut,
 } from 'lucide-react';
 import { getRoom, endRoom, getLeaderboard } from '../api/rooms';
 import { listProblems } from '../api/problems';
@@ -315,6 +315,23 @@ export default function Contest() {
               <Button variant="danger" onClick={handleEndRoom} isLoading={isEnding} className="w-full text-xs">
                 <Square size={13} />
                 End Room
+              </Button>
+            </div>
+          )}
+
+          {/* Once the contest is over nobody is forced out, so leaving needs
+              an explicit way back. This only navigates: the user stays a
+              participant, so the final standings and their room history are
+              unaffected by walking away. */}
+          {isContestOver && (
+            <div className="border-t border-border p-3">
+              <Button
+                variant="danger"
+                onClick={() => navigate('/dashboard')}
+                className="w-full text-xs"
+              >
+                <LogOut size={13} />
+                Exit Room
               </Button>
             </div>
           )}
