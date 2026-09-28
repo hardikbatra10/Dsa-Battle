@@ -1,19 +1,12 @@
 import api from './axios';
 
-// POST /api/rooms/create/  { topic, difficulty, number_of_questions, time_limit_minutes, max_participants }
-export function createRoom({
-  topic,
-  difficulty,
-  number_of_questions,
-  time_limit_minutes,
-  max_participants,
-}) {
+// POST /api/rooms/create/  { topic, difficulty, number_of_questions, time_limit_minutes }
+export function createRoom({ topic, difficulty, number_of_questions, time_limit_minutes }) {
   return api.post('/rooms/create/', {
     topic,
     difficulty,
     number_of_questions,
     time_limit_minutes,
-    max_participants,
   });
 }
 
@@ -28,8 +21,8 @@ export function getRoom(roomCode) {
 }
 
 // POST /api/rooms/<room_code>/start/
-// Returns 409 with { joined, capacity, can_force } when the room is not yet
-// full; re-send with force=true to start anyway.
+// Returns 409 with { joined, can_force } when the creator is alone in the
+// room; re-send with force=true to start anyway.
 export function startRoom(roomCode, { force = false } = {}) {
   return api.post(`/rooms/${roomCode}/start/`, force ? { force: true } : {});
 }

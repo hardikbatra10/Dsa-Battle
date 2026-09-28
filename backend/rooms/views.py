@@ -26,9 +26,6 @@ class CreateRoomView(APIView):
         difficulty = serializer.validated_data['difficulty']
         number_of_questions = serializer.validated_data['number_of_questions']
         time_limit_minutes = serializer.validated_data['time_limit_minutes']
-        max_participants = serializer.validated_data.get(
-            'max_participants', Room.MIN_PARTICIPANTS
-        )
 
         available_problems = Problem.objects.filter(
             topic = topic,
@@ -55,8 +52,7 @@ class CreateRoomView(APIView):
             difficulty=difficulty,
             room_code=room_code,
             number_of_questions=number_of_questions,
-            time_limit_minutes=time_limit_minutes,
-            max_participants=max_participants
+            time_limit_minutes=time_limit_minutes
         )
         room.participants.add(request.user)
 
@@ -101,12 +97,6 @@ class JoinRoomView(APIView):
         if room.status != "waiting":
             return Response(
                 {"error": "This room has already started."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if room.is_full:
-            return Response(
-                {"error": f"This room is full ({room.max_participants} participants)."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -169,23 +159,17 @@ class StartRoomView(APIView):
         
         joined = room.participants.count()
 
-        if joined < 1:
-            return Response(
-               {"error" : "At least 1 Participants Required"},
-               status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Under capacity, starting is refused unless the creator explicitly
-        # forces it. The 409 plus the counts is what lets the client raise a
-        # "not everyone has joined - force start?" prompt rather than guess.
+        # A room holds as many people as turn up, so there is no capacity to
+        # be short of. The one case still worth a second look is starting
+        # completely alone, which is usually an accident rather than an
+        # intent - so it asks, and takes yes for an answer.
         force = str(request.data.get("force", "")).lower() in ("true", "1", "yes")
 
-        if joined < room.max_participants and not force:
+        if joined < 2 and not force:
             return Response(
                 {
-                    "error": "Not all participants have joined this room yet.",
+                    "error": "You are the only person in this room.",
                     "joined": joined,
-                    "capacity": room.max_participants,
                     "can_force": True,
                 },
                 status=status.HTTP_409_CONFLICT

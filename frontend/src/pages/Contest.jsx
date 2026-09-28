@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Send, Play, CheckCircle2, XCircle, Square, Flag,
@@ -22,6 +22,12 @@ import Select from '../components/common/Select';
 import Button from '../components/common/Button';
 import ErrorBanner from '../components/common/ErrorBanner';
 import Modal from '../components/common/Modal';
+import ColumnResizer from '../components/common/ColumnResizer';
+import {
+  useColumnWidths,
+  COLUMN_LIMITS,
+  EDITOR_MIN,
+} from '../hooks/useColumnWidths';
 import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 import TestCaseResult from '../components/common/TestCaseResult';
 
@@ -65,6 +71,37 @@ export default function Contest() {
   useEffect(() => {
     localStorage.setItem(CHAT_OPEN_KEY, String(isChatOpen));
   }, [isChatOpen]);
+
+  const { widths, setWidth, resetWidths, isWide } = useColumnWidths();
+
+  // The row's own width is what decides how much any column may take: the
+  // caps below are dynamic, so a drag can never leave the editor too narrow
+  // to use, on any window size.
+  const rowRef = useRef(null);
+  const [rowWidth, setRowWidth] = useState(0);
+
+  useEffect(() => {
+    const node = rowRef.current;
+    if (!node) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      setRowWidth(entry.contentRect.width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const chatWidth = isChatOpen ? widths.chat : 48;
+
+  // How wide one column may grow: its own cap, or whatever is left once the
+  // other columns and the editor's minimum are accounted for.
+  function maxWidthFor(key) {
+    const taken =
+      (key === 'sidebar' ? 0 : widths.sidebar) +
+      (key === 'panel' ? 0 : widths.panel) +
+      (key === 'chat' ? 0 : chatWidth);
+    const room = rowWidth ? rowWidth - taken - EDITOR_MIN : COLUMN_LIMITS[key].max;
+    return Math.max(COLUMN_LIMITS[key].min, Math.min(COLUMN_LIMITS[key].max, room));
+  }
   const [isEnding, setIsEnding] = useState(false);
 
   // Initial load: room, the full problem bank (there's no "get problem by id"
@@ -302,8 +339,11 @@ export default function Contest() {
         )
       }
     >
-      <div className="flex h-full flex-col lg:flex-row">
-        <aside className="shrink-0 overflow-y-auto border-b border-border lg:w-60 lg:border-b-0 lg:border-r">
+      <div ref={rowRef} className="flex h-full flex-col lg:flex-row">
+        <aside
+          style={isWide ? { width: widths.sidebar } : undefined}
+          className="shrink-0 overflow-y-auto border-b border-border lg:border-b-0"
+        >
           <ProblemSidebar
             problems={roomProblems}
             activeProblemId={activeProblemId}
@@ -337,7 +377,18 @@ export default function Contest() {
           )}
         </aside>
 
-        <section className="flex min-h-0 flex-1 flex-col overflow-y-auto border-b border-border lg:w-[26rem] lg:flex-none lg:border-b-0 lg:border-r">
+        <ColumnResizer
+          label="Problem list width"
+          value={widths.sidebar}
+          min={COLUMN_LIMITS.sidebar.min}
+          max={maxWidthFor('sidebar')}
+          onChange={(next) => setWidth('sidebar', next)}
+          onReset={resetWidths}
+        />
+
+        <section
+          style={isWide ? { width: widths.panel } : undefined}
+          className="flex min-h-0 flex-1 flex-col overflow-y-auto border-b border-border lg:flex-none lg:border-b-0">
           <div className="flex border-b border-border">
             <TabButton active={tab === 'problem'} onClick={() => setTab('problem')}>
               Problem
@@ -364,7 +415,16 @@ export default function Contest() {
           </div>
         </section>
 
-        <section className="flex min-h-[420px] flex-1 flex-col">
+        <ColumnResizer
+          label="Problem panel width"
+          value={widths.panel}
+          min={COLUMN_LIMITS.panel.min}
+          max={maxWidthFor('panel')}
+          onChange={(next) => setWidth('panel', next)}
+          onReset={resetWidths}
+        />
+
+        <section className="flex min-h-[420px] min-w-0 flex-1 flex-col">
           <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2">
             <Select
               value={activeLanguage}
@@ -465,9 +525,22 @@ export default function Contest() {
         {/* Chat lives here rather than behind a tab so it is visible the whole
             time, the way a voice channel would be. On screens below lg the
             row stacks, so this becomes a panel underneath the editor. */}
+        {isChatOpen && (
+          <ColumnResizer
+            label="Chat width"
+            value={widths.chat}
+            min={COLUMN_LIMITS.chat.min}
+            max={maxWidthFor('chat')}
+            sign={-1}
+            onChange={(next) => setWidth('chat', next)}
+            onReset={resetWidths}
+          />
+        )}
+
         <aside
-          className={`flex shrink-0 flex-col border-t border-border lg:border-l lg:border-t-0 ${
-            isChatOpen ? 'h-72 lg:h-auto lg:w-80' : 'lg:w-12'
+          style={isWide ? { width: chatWidth } : undefined}
+          className={`flex shrink-0 flex-col border-t border-border lg:border-t-0 ${
+            isChatOpen ? 'h-72 lg:h-auto' : 'lg:border-l'
           }`}
         >
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">

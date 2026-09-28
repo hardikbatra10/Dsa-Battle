@@ -18,7 +18,6 @@ export default function CreateRoom() {
     difficulty: 'easy',
     number_of_questions: 3,
     time_limit_minutes: 60,
-    max_participants: 3,
   });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +37,6 @@ export default function CreateRoom() {
         difficulty: form.difficulty,
         number_of_questions: Number(form.number_of_questions),
         time_limit_minutes: Number(form.time_limit_minutes),
-        max_participants: Number(form.max_participants),
       });
       navigate(`/rooms/${data.room_code}`);
     } catch (err) {
@@ -104,26 +102,6 @@ export default function CreateRoom() {
             onChange={updateField('time_limit_minutes')}
             required
           />
-
-          {/* A fixed choice rather than a free number field: the room size is
-              a rule the backend enforces, so the form should not let someone
-              type a value it will reject. */}
-          <Select
-            id="max_participants"
-            label="Participants"
-            value={form.max_participants}
-            onChange={updateField('max_participants')}
-          >
-            {[3, 4, 5, 6, 7, 8, 9].map((count) => (
-              <option key={count} value={count}>
-                {count} participants
-              </option>
-            ))}
-          </Select>
-          <p className="-mt-2 text-xs text-ink-faint">
-            The contest starts when this many people have joined. You can still
-            force an early start if someone does not turn up.
-          </p>
 
           <ErrorBanner message={error} />
 

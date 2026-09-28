@@ -1,6 +1,5 @@
 from datetime import timedelta
 
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -44,21 +43,6 @@ class Room(models.Model):
 
     number_of_questions = models.IntegerField()
 
-    # How many people the room is sized for. The creator picks this up front,
-    # joining is refused once the room is full, and starting early requires an
-    # explicit force. Existing rooms take the lowest allowed value, which is
-    # the only default that cannot retroactively make a full room look unfull.
-    MIN_PARTICIPANTS = 3
-    MAX_PARTICIPANTS = 9
-
-    max_participants = models.IntegerField(
-        default=MIN_PARTICIPANTS,
-        validators=[
-            MinValueValidator(MIN_PARTICIPANTS),
-            MaxValueValidator(MAX_PARTICIPANTS),
-        ],
-    )
-
     time_limit_minutes = models.IntegerField(
         default=60
     )
@@ -86,10 +70,6 @@ class Room(models.Model):
         null=True,
         blank=True
     )
-
-    @property
-    def is_full(self):
-        return self.participants.count() >= self.max_participants
 
     @property
     def ends_at(self):

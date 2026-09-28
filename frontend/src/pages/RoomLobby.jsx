@@ -27,8 +27,7 @@ export default function RoomLobby() {
   const [isStarting, setIsStarting] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  // Set when the backend refuses an under-capacity start, which is what
-  // drives the force-start prompt.
+  // Set when the backend refuses a solo start, which drives the prompt below.
   const [shortfall, setShortfall] = useState(null);
 
   const fetchRoom = useCallback(async () => {
@@ -60,7 +59,7 @@ export default function RoomLobby() {
       // and the creator gets to decide whether to start anyway.
       const data = err?.response?.data;
       if (err?.response?.status === 409 && data?.can_force) {
-        setShortfall({ joined: data.joined, capacity: data.capacity });
+        setShortfall({ joined: data.joined });
       } else {
         setActionError(getApiErrorMessage(err, 'Could not start the room.'));
       }
@@ -158,8 +157,7 @@ export default function RoomLobby() {
       <Card className="mb-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-faint">
-            Participants ({room.participant_usernames.length}
-            {room.max_participants ? ` / ${room.max_participants}` : ''})
+            Participants ({room.participant_usernames.length})
           </h2>
           <Users size={16} className="text-ink-faint" />
         </div>
@@ -219,15 +217,14 @@ export default function RoomLobby() {
 
       <Modal
         open={shortfall !== null}
-        title="Not everyone has joined"
+        title="You are on your own"
         icon={<AlertTriangle size={18} className="text-warning" />}
         onClose={() => setShortfall(null)}
       >
         <p className="text-sm leading-relaxed text-ink-soft">
-          {shortfall?.joined} of {shortfall?.capacity} participants have joined this
-          room. Starting now means the people who have not arrived yet will not be
-          able to take part - once a contest is running, the room is closed to new
-          joiners.
+          Nobody else has joined this room yet. You can start anyway and work
+          through the problems solo, but once the contest is running the room is
+          closed to new joiners, so anyone still on their way will miss it.
         </p>
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={() => setShortfall(null)}>
@@ -241,7 +238,7 @@ export default function RoomLobby() {
               handleStart({ force: true });
             }}
           >
-            Force start
+            Start anyway
           </Button>
         </div>
       </Modal>
