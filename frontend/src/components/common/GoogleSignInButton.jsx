@@ -42,6 +42,24 @@ export default function GoogleSignInButton({ label = 'Continue with Google' }) {
         setError('Your browser blocked the sign-in popup. Allow popups and try again.');
         return;
       }
+      if (code === 'auth/network-request-failed') {
+        // Nothing to do with this app's server: the browser could not reach
+        // Google itself. An ad blocker or privacy extension is the usual
+        // culprit, since they commonly block googleapis.com.
+        setError(
+          'Your browser could not reach Google. An ad blocker or privacy ' +
+          'extension is the usual cause - try again with it off, or in a ' +
+          'private window.'
+        );
+        return;
+      }
+      if (code === 'auth/unauthorized-domain') {
+        setError(
+          `${window.location.hostname} is not an authorised domain for this ` +
+          `Firebase project.`
+        );
+        return;
+      }
       setError(getApiErrorMessage(err, 'Google sign-in failed.'));
     } finally {
       setIsBusy(false);

@@ -67,14 +67,30 @@ MIDDLEWARE = [
     
 ]
 
+# Browser origins allowed to call this API. The apex and the www host are
+# separate origins to a browser, so both have to be listed - a site served on
+# www.peercode.in cannot borrow peercode.in's entry.
+#
+# EXTRA_ALLOWED_ORIGINS (comma-separated) appends to both lists, so a new
+# domain needs an environment variable rather than a code change and deploy.
 CORS_ALLOWED_ORIGINS = [
+    "https://peercode.in",
+    "https://www.peercode.in",
     "https://peer-code-battle.vercel.app",
     "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
-CSRF_TRUSTED_ORIGINS = [
-    "https://peer-code-battle.vercel.app",
-    "http://localhost:3000",
+
+_extra_origins = [
+    origin.strip()
+    for origin in os.getenv("EXTRA_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
 ]
+CORS_ALLOWED_ORIGINS += _extra_origins
+
+# Same list again: CSRF checks the Origin header on unsafe methods, and a
+# missing entry here fails requests that CORS has already let through.
+CSRF_TRUSTED_ORIGINS = list(CORS_ALLOWED_ORIGINS)
 
 ROOT_URLCONF = 'config.urls'
 
