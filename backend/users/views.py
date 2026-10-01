@@ -61,6 +61,9 @@ class UserProfileView(APIView):
             {
                 "username": user.username,
                 "email": user.email,
+                # Drives the one-time "pick a username" step for accounts
+                # created through Google, which start with a derived name.
+                "needs_username": not user.has_set_username,
                 "rooms_created": rooms_created,
                 "problems_solved": problems_solved,
                 "total_submissions": total_submissions

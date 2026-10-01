@@ -25,3 +25,9 @@ export function getProfile() {
 export function googleLogin(idToken) {
   return api.post('/users/google/', { id_token: idToken });
 }
+
+// POST /api/users/username/  { username }
+// One-time claim of a real username for a Google-created account.
+export function setUsername(username) {
+  return api.post('/users/username/', { username });
+}

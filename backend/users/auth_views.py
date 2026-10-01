@@ -11,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.utils.crypto import get_random_string
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -32,8 +32,13 @@ USERNAME_SAFE = set(
 )
 
 
-def _username_from_email(email):
-    """Derives a plausible, unique username from a verified email address."""
+def _placeholder_username(email):
+    """A unique stand-in username for a brand new Google account.
+
+    Only ever temporary: the account is flagged has_set_username=False and the
+    client sends the user to pick a real one before they can do anything else.
+    A value is still needed up front because username is unique and required.
+    """
     base = "".join(c for c in email.split("@")[0] if c in USERNAME_SAFE)[:24]
     if not base:
         base = "player"
@@ -91,7 +96,13 @@ class GoogleLoginView(APIView):
             with transaction.atomic():
                 user, created = User.objects.get_or_create(
                     email=email,
-                    defaults={"username": _username_from_email(email)},
+                    defaults={
+                        "username": _placeholder_username(email),
+                        # The name was derived, not chosen. The client reads
+                        # this back from the profile and routes them to pick
+                        # one before anything else becomes reachable.
+                        "has_set_username": False,
+                    },
                 )
                 if created:
                     # No usable password: this account can only be entered
@@ -114,3 +125,66 @@ class GoogleLoginView(APIView):
         tokens["created"] = created
         return Response(tokens, status=status.HTTP_200_OK)
 
+
+
+class SetUsernameView(APIView):
+    """Lets a signed-in user claim their username.
+
+    Deliberately not a general profile editor: it only runs while
+    has_set_username is False, so this cannot be used to rename an established
+    account out from under the leaderboards and submission history that
+    display it.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    MIN_LENGTH = 3
+    MAX_LENGTH = 20
+    ALLOWED = set(
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
+    )
+
+    def post(self, request):
+        user = request.user
+
+        if user.has_set_username:
+            return Response(
+                {"error": "Your username has already been set."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        username = (request.data.get("username") or "").strip()
+
+        if len(username) < self.MIN_LENGTH or len(username) > self.MAX_LENGTH:
+            return Response(
+                {"error": f"Username must be {self.MIN_LENGTH}-{self.MAX_LENGTH} characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not set(username) <= self.ALLOWED:
+            return Response(
+                {"error": "Use only letters, numbers and underscores."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Case-insensitive, so "Hardik" cannot shadow an existing "hardik" on
+        # a leaderboard. Excludes self, though self still holds a placeholder.
+        taken = User.objects.filter(username__iexact=username).exclude(id=user.id).exists()
+        if taken:
+            return Response(
+                {"error": "That username is taken."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        user.username = username
+        user.has_set_username = True
+        try:
+            user.save(update_fields=["username", "has_set_username"])
+        except IntegrityError:
+            # Someone claimed it between the check above and this write.
+            return Response(
+                {"error": "That username was just taken. Try another."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response({"username": user.username}, status=status.HTTP_200_OK)

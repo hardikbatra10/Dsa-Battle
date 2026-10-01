@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 
@@ -6,7 +6,8 @@ import LoadingSpinner from '../components/LoadingSpinner/LoadingSpinner';
 // session, then either renders the nested route (<Outlet />) or bounces the
 // user to /login.
 export default function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -18,6 +19,14 @@ export default function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // A Google account still carrying its derived placeholder name has to pick
+  // a real one first. Enforced here rather than at the end of the sign-in
+  // handler so it survives a refresh, a bookmark, or a direct URL - any of
+  // which would otherwise walk straight past the step.
+  if (user?.needs_username && location.pathname !== '/choose-username') {
+    return <Navigate to="/choose-username" replace />;
   }
 
   return <Outlet />;

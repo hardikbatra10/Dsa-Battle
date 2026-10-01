@@ -17,6 +17,7 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import SubmissionHistory from './pages/SubmissionHistory';
 import SubmissionDetail from './pages/SubmissionDetail';
 import Profile from './pages/Profile';
+import ChooseUsername from './pages/ChooseUsername';
 import NotFound from './pages/NotFound';
 
 function Home() {
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/register" element={<Register />} />
 
             <Route element={<ProtectedRoute />}>
+              <Route path="/choose-username" element={<ChooseUsername />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/rooms/create" element={<CreateRoom />} />
               <Route path="/rooms/join" element={<JoinRoom />} />
