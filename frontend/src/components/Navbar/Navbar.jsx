@@ -1,5 +1,6 @@
 import { Link, NavLink as RouterNavLink, useNavigate } from 'react-router-dom';
-import { Swords, LogOut, User, Plus, LogIn } from 'lucide-react';
+import { LogOut, User, Plus, LogIn } from 'lucide-react';
+import PeerCodeLogo from '../common/PeerCodeLogo';
 import { useAuth } from '../../hooks/useAuth';
 
 function NavItem({ to, icon: Icon, children }) {
@@ -34,7 +35,7 @@ export default function Navbar() {
           to={isAuthenticated ? '/dashboard' : '/'}
           className="flex items-center gap-2 font-semibold tracking-tight text-ink"
         >
-          <Swords size={20} className="text-primary" />
+          <PeerCodeLogo size={20} className="text-primary" />
           <span>Peer Code</span>
         </Link>
 

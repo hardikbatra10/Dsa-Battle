@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Swords } from 'lucide-react';
+import PeerCodeLogo from '../components/common/PeerCodeLogo';
 import { useAuth } from '../hooks/useAuth';
 
 // Compact, full-height chrome for the contest page: logo | room code | timer | user.
@@ -13,7 +13,7 @@ export default function ContestLayout({ roomCode, timerSlot, children }) {
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <Link to="/dashboard" className="flex items-center gap-2 font-semibold text-ink">
-            <Swords size={18} className="text-primary" />
+            <PeerCodeLogo size={18} className="text-primary" />
             <span className="hidden sm:inline">DSA Battle</span>
           </Link>
           {roomCode && (

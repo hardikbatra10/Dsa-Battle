@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Swords } from 'lucide-react';
+import PeerCodeLogo from '../components/common/PeerCodeLogo';
 import { useAuth } from '../hooks/useAuth';
 import { getApiErrorMessage } from '../api/axios';
 import Input from '../components/common/Input';
@@ -38,7 +38,7 @@ export default function Login() {
   return (
     <div className="mx-auto flex max-w-sm flex-col items-center py-10">
       <Link to="/" className="mb-8 flex items-center gap-2 text-lg font-semibold text-ink">
-        <Swords className="text-primary" size={22} />
+        <PeerCodeLogo className="text-primary" size={22} />
         Peer Code
       </Link>
 

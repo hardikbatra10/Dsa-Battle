@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Swords, Users, Trophy, Timer, Code2, ListChecks, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Users, Trophy, Timer, Code2, ListChecks, CheckCircle2, ArrowRight } from 'lucide-react';
+import PeerCodeLogo from '../components/common/PeerCodeLogo';
 import Button from '../components/common/Button';
 import Card from '../components/common/Card';
 import { Badge, DifficultyBadge } from '../components/common/Badge';
@@ -69,7 +70,7 @@ export default function LandingPage() {
       <section className="grid items-center gap-12 lg:grid-cols-2">
         <div>
           <Badge tone="primary">
-            <Swords size={12} /> Real-time coding battles
+            <PeerCodeLogo size={12} /> Real-time coding battles
           </Badge>
 
           <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-ink sm:text-5xl">
