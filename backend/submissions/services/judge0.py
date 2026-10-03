@@ -1,3 +1,4 @@
+import base64
 import os
 import time
 
@@ -32,6 +33,36 @@ POLL_TIMEOUT_SECONDS = 45
 
 # Fields we actually read back, so Judge0 doesn't ship us the whole record.
 RESULT_FIELDS = "status,stdout,stderr,compile_output"
+
+# Everything is exchanged base64-encoded, and that is not optional.
+#
+# With base64_encoded=false, Judge0 refuses to return a batch at all if ANY
+# field in it is not valid UTF-8 - it answers the results fetch with
+# HTTP 400 "some attributes ... cannot be converted to UTF-8". Compiler
+# diagnostics trip this routinely (gcc emits typographic quotes and, on some
+# errors, raw bytes), so a single student syntax error would fail the whole
+# submission rather than coming back as a compile-error verdict. Programs that
+# print arbitrary bytes would do the same.
+B64 = "true"
+
+
+def _encode(text):
+    return base64.b64encode((text or "").encode("utf-8")).decode("ascii")
+
+
+def _decode(value):
+    """Decodes one base64 field from Judge0 back to text.
+
+    Lenient on purpose: this is compiler and program output, so it may be
+    malformed or not quite UTF-8. Replacing undecodable bytes keeps a usable
+    error message instead of raising while reporting someone's error.
+    """
+    if not value:
+        return ""
+    try:
+        return base64.b64decode(value).decode("utf-8", errors="replace")
+    except Exception:
+        return ""
 
 
 class Judge0Error(RuntimeError):
@@ -78,9 +109,9 @@ def _submit_batch(source_code, language_id, stdins):
     payload = {
         "submissions": [
             {
-                "source_code": source_code,
+                "source_code": _encode(source_code),
                 "language_id": language_id,
-                "stdin": stdin,
+                "stdin": _encode(stdin),
             }
             for stdin in stdins
         ]
@@ -88,7 +119,7 @@ def _submit_batch(source_code, language_id, stdins):
 
     try:
         response = requests.post(
-            f"{BASE_URL}/submissions/batch?base64_encoded=false",
+            f"{BASE_URL}/submissions/batch?base64_encoded={B64}",
             json=payload,
             headers=_headers(),
             timeout=30,
@@ -114,7 +145,7 @@ def _await_batch(tokens):
     deadline = time.monotonic() + POLL_TIMEOUT_SECONDS
     url = (
         f"{BASE_URL}/submissions/batch"
-        f"?tokens={','.join(tokens)}&base64_encoded=false&fields={RESULT_FIELDS}"
+        f"?tokens={','.join(tokens)}&base64_encoded={B64}&fields={RESULT_FIELDS}"
     )
 
     while True:
@@ -132,6 +163,12 @@ def _await_batch(tokens):
             for entry in submissions
         )
         if not still_running and len(submissions) == len(tokens):
+            # status stays as-is (it is an object, never encoded); the three
+            # text fields come back base64 and are decoded once, here, so no
+            # caller has to know about the encoding.
+            for entry in submissions:
+                for field in ("stdout", "stderr", "compile_output"):
+                    entry[field] = _decode(entry.get(field))
             return submissions
 
         if time.monotonic() >= deadline:
